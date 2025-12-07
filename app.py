@@ -1,4 +1,13 @@
-import streamlit as st
+# 5. 툴팁 HTML 생성 함수 (🎨 개선된 디자인)
+def create_tooltip_html(node_data):
+    book_title = node_data.get('title') or node_data.get('id') or "제목 없음"
+    author = node_data.get('author', '저자 미상')
+    reason = node_data.get('reason', '추천 이유가 없습니다.')
+    summary = node_data.get('summary', '줄거리 정보가 없습니다.')
+    group = node_data.get('group', 'Recommended')
+
+    if group == 'Seed':
+        badge_bgimport streamlit as st
 from pyvis.network import Network
 import requests
 import json
