@@ -43,7 +43,6 @@ with st.sidebar:
 
 # 5. 툴팁 HTML 생성 함수
 def create_tooltip_html(node_data):
-    # 데이터 가져오기 (title 우선)
     book_title = node_data.get('title') or node_data.get('id') or "제목 없음"
     
     def clean(text):
@@ -101,7 +100,7 @@ def extract_json(text):
         pass
     return None
 
-# 7. 그래프 생성 로직
+# 7. 그래프 생성 로직 (🌟 연결선과 라벨 강제 요청)
 def get_recommendations(books):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
@@ -109,14 +108,24 @@ def get_recommendations(books):
     사용자가 입력한 인생 책 3권: {books}
     
     [임무]
-    문학 큐레이터로서 책의 정서, 문체, 철학을 연결하여 '꼬리에 꼬리를 무는 추천 지도'를 만드세요.
+    책의 정서, 문체, 철학을 연결하여 '추천 지도'를 만드세요.
     
-    [조건]
-    1. Seed(입력책) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 확장.
+    [필수 조건]
+    1. Seed(입력책) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 연결.
     2. 총 노드 15개 이상.
     3. 오직 JSON 포맷만 출력.
-    4. 키 이름: "id", "title" (책제목 필수), "author", "group", "summary", "reason".
-    5. "title" 키에 책 제목을 정확히 기입할 것.
+    4. **Edges(연결선)**: 반드시 노드 간의 연결 관계를 포함해야 함.
+    5. **Edge Label(관계 키워드)**: 연결된 두 책 사이의 공통점을 2~4단어의 짧은 키워드로 작성 (예: "부조리 철학 공유", "성장과 고통", "디스토피아적 세계관").
+    
+    [JSON 구조]
+    {{
+      "nodes": [
+        {{"id": "책제목", "title": "책제목(필수)", "author": "저자", "group": "Seed/Recommended", "summary": "...", "reason": "..."}}
+      ],
+      "edges": [
+        {{"source": "책제목A", "target": "책제목B", "label": "관계 키워드(필수)"}}
+      ]
+    }}
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -136,9 +145,9 @@ def get_recommendations(books):
         st.error(f"통신 오류: {e}")
         return None
 
-# 8. Pyvis 시각화
+# 8. Pyvis 시각화 (🌟 연결선 라벨 설정 추가)
 def visualize_network(data):
-    # 🌟 [설정] 배경 흰색, 글자 검정
+    # 배경 흰색
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="#000000")
     
     if isinstance(data, list):
@@ -146,47 +155,40 @@ def visualize_network(data):
     if not isinstance(data, dict) or 'nodes' not in data:
         return None
     
-    # 🌟 [핵심] inherit: false 및 색상 강제 지정 (#888888 회색)
-    # 이제 노드 색상과 상관없이 선은 무조건 회색입니다.
+    # 🌟 [설정] 연결선 위에 글씨가 잘 보이도록 폰트 설정 추가
     options = """
     {
       "nodes": {
-        "font": {
-          "size": 16,
-          "face": "Noto Sans KR",
-          "color": "#000000",
-          "strokeWidth": 3,
-          "strokeColor": "#ffffff"
-        },
+        "font": { "size": 16, "face": "Noto Sans KR", "color": "#000000", "strokeWidth": 3, "strokeColor": "#ffffff" },
         "borderWidth": 2,
         "borderWidthSelected": 4
       },
       "edges": {
-        "color": {
-          "color": "#888888",
-          "highlight": "#000000",
-          "hover": "#000000",
-          "inherit": false
-        },
+        "color": { "color": "#888888", "inherit": false },
         "width": 1.5,
-        "smooth": {
-          "type": "continuous"
+        "smooth": { "type": "continuous" },
+        "font": {
+          "size": 11,
+          "face": "Noto Sans KR",
+          "align": "middle",
+          "background": "#ffffff",
+          "strokeWidth": 0
         }
       },
       "physics": {
         "forceAtlas2Based": {
-          "gravitationalConstant": -80,
+          "gravitationalConstant": -100,
           "centralGravity": 0.005,
-          "springLength": 200,
+          "springLength": 250,
           "springConstant": 0.04,
           "damping": 0.5
-        },
-        "solver": "forceAtlas2Based"
+        }
       }
     }
     """
     net.set_options(options)
     
+    # 노드 추가
     for node in data.get('nodes', []):
         node_id = node.get('id')
         node_label = node.get('title') or str(node_id)
@@ -217,13 +219,17 @@ def visualize_network(data):
             size=size
         )
     
+    # 🌟 엣지(연결선) 및 라벨(키워드) 추가
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
+        label = edge.get('label', '') # 관계 키워드 가져오기
+        
         if source and target:
-            # 🌟 [이중 안전장치] 여기에서도 색상을 강제로 지정합니다.
-            net.add_edge(source, target, color="#888888")
+            # label 인자에 키워드를 넣으면 선 위에 글씨가 뜹니다
+            net.add_edge(source, target, label=label)
             
+    # CSS 강제 주입
     try:
         path = "tmp_network.html"
         net.save_graph(path)
@@ -250,14 +256,18 @@ def visualize_network(data):
 
 # 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    with st.spinner("AI가 꼬리에 꼬리를 무는 독서 지도를 그리는 중..."):
+    with st.spinner("AI가 책들의 관계를 연결하고 있습니다..."):
         data = get_recommendations([book1, book2, book3])
         
         if data:
+            # 엣지 데이터가 비어있을 경우를 대비한 경고
+            if not data.get('edges'):
+                st.warning("AI가 책은 찾았으나 연결 관계를 생성하지 못했습니다. 다시 시도해보세요.")
+            
             final_html = visualize_network(data)
             if final_html:
                 components.html(final_html, height=770)
-                st.success("✅ 분석 완료! 노드 위에 마우스를 올려보세요.")
+                st.success("✅ 분석 완료! 선 위의 키워드를 확인해보세요.")
             else:
                 st.error("시각화 생성 실패")
         else:
