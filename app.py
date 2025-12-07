@@ -69,9 +69,9 @@ def create_graph(books):
     """
     
     try:
-        # ✅ 신규 SDK 사용법
+        # ✅ 무료 할당량이 더 넉넉한 모델 사용
         response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
+            model='gemini-1.5-flash',  # 무료 할당량: 분당 15회, 일당 1500회
             contents=prompt
         )
         text = response.text.replace("```json", "").replace("```", "")
