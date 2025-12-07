@@ -1,4 +1,4 @@
 streamlit
 networkx
 matplotlib
-google-generativeai
+requests
