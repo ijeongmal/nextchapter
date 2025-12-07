@@ -1,25 +1,40 @@
 import streamlit as st
 import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import google.generativeai as genai
 import json
+import os
 
-# 페이지 기본 설정
+# 1. 페이지 설정
 st.set_page_config(page_title="Literary Nexus", layout="wide")
 
-# 제목 및 설명
+# 2. 한글 폰트 설정 (이 부분이 추가되었습니다!)
+font_path = 'NanumGothic.ttf' # 같은 폴더에 있는 폰트 파일 지정
+
+if os.path.exists(font_path):
+    # 폰트 파일이 있으면 로드해서 기본 폰트로 설정
+    font_prop = fm.FontProperties(fname=font_path)
+    font_name = font_prop.get_name()
+    plt.rc('font', family=font_name)
+    # 마이너스 기호 깨짐 방지
+    plt.rcParams['axes.unicode_minus'] = False
+else:
+    # 폰트 파일이 없으면 경고 메시지 (하지만 프로그램은 돌아가게 함)
+    st.warning("⚠️ 'NanumGothic.ttf' 파일을 찾을 수 없습니다. 한글이 깨질 수 있습니다.")
+
+# 3. 제목 및 설명
 st.title("📚 AI 기반 도서 추천 네트워크")
 st.markdown("세 권의 책을 입력하면, 취향을 분석하여 새로운 책들을 연결해 드립니다.")
 
-# API 키 설정 (Streamlit Secrets에서 가져옴)
-# 주의: 이 코드는 Streamlit Cloud에 배포 후 'Secrets'에 API 키를 등록해야 작동합니다.
+# 4. API 키 설정 (Streamlit Secrets 사용)
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=GOOGLE_API_KEY)
 except Exception:
     st.error("API 키가 설정되지 않았습니다. Streamlit 설정을 확인해주세요.")
 
-# 사이드바 입력창
+# 5. 사이드바 입력창
 with st.sidebar:
     st.header("나의 인생 책 3권")
     book1 = st.text_input("첫 번째 책", placeholder="예: 데미안")
@@ -27,7 +42,7 @@ with st.sidebar:
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 그래프 생성 함수
+# 6. 그래프 생성 로직
 def create_graph(books):
     model = genai.GenerativeModel('gemini-pro')
     
@@ -53,37 +68,36 @@ def create_graph(books):
     
     try:
         response = model.generate_content(prompt)
-        # JSON 부분만 추출 (가끔 ```json ... ``` 으로 감싸져 나올 때를 대비)
         text = response.text.replace("```json", "").replace("```", "")
         return json.loads(text)
     except Exception as e:
         st.error(f"데이터 생성 중 오류가 발생했습니다: {e}")
         return None
 
-# 메인 화면 로직
+# 7. 메인 실행 및 시각화
 if analyze_btn and book1 and book2 and book3:
     with st.spinner("AI가 책들의 관계를 분석하고 있습니다..."):
         data = create_graph([book1, book2, book3])
         
         if data:
-            # 그래프 그리기
             G = nx.Graph()
             
-            # 노드 추가
             for node in data['nodes']:
                 G.add_node(node['id'], group=node.get('group', 1))
             
-            # 엣지 추가
             for edge in data['edges']:
                 G.add_edge(edge['source'], edge['target'], label=edge.get('label', ''))
 
-            # 시각화 설정
             plt.figure(figsize=(12, 8))
-            pos = nx.spring_layout(G, k=0.5)  # k값으로 노드 간격 조절
+            
+            # 레이아웃 설정
+            pos = nx.spring_layout(G, k=0.8) # k값을 키우면 노드 간격이 더 벌어집니다
             
             # 노드 그리기
-            nx.draw_networkx_nodes(G, pos, node_size=2000, node_color='lightblue', alpha=0.9)
-            nx.draw_networkx_labels(G, pos, font_family='Malgun Gothic', font_size=10) # 한글 폰트 설정 필요시 수정
+            nx.draw_networkx_nodes(G, pos, node_size=2500, node_color='skyblue', alpha=0.9)
+            
+            # 라벨(텍스트) 그리기 - 여기서 위에서 설정한 폰트가 적용됩니다
+            nx.draw_networkx_labels(G, pos, font_family=plt.rcParams['font.family'], font_size=10)
             
             # 엣지 그리기
             nx.draw_networkx_edges(G, pos, width=1.5, alpha=0.5, edge_color='gray')
@@ -91,7 +105,6 @@ if analyze_btn and book1 and book2 and book3:
             st.pyplot(plt)
             st.success("네트워크 생성이 완료되었습니다!")
             
-            # 텍스트로 추천 이유 보기
             with st.expander("추천 상세 이유 보기"):
                 for edge in data['edges']:
                     st.write(f"- **{edge['source']}** ➡️ **{edge['target']}**: {edge['label']}")
