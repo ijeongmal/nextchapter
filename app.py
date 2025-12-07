@@ -26,11 +26,23 @@ html, body, [class*="css"] {
 st.title("🌌 AI 도서 취향 탐색기")
 st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**를 분석하여 당신만의 도서 우주를 만들어 드립니다.")
 
-# 3. API 키 가져오기
+# 3. API 키 가져오기 (보안 강화)
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
-except Exception:
-    st.error("⚠️ API 키 설정을 확인해주세요. (Manage app -> Secrets)")
+    if not API_KEY or API_KEY == "":
+        raise ValueError("API 키가 비어있습니다")
+except Exception as e:
+    st.error("⚠️ API 키 설정을 확인해주세요.")
+    st.info("""
+    **API 키 설정 방법:**
+    1. Streamlit Cloud: Settings → Secrets에 다음 추가
+       ```
+       GOOGLE_API_KEY = "your-api-key-here"
+       ```
+    2. 로컬 실행: `.streamlit/secrets.toml` 파일 생성 후 동일하게 작성
+    
+    ⚠️ **중요**: API 키를 코드에 직접 입력하지 마세요!
+    """)
     st.stop()
 
 # 4. 사이드바 입력창
@@ -101,6 +113,7 @@ def extract_json(text):
     return None
 
 # 7. 그래프 생성 로직 (🔥 더 명확한 프롬프트)
+@st.cache_data(ttl=3600)  # 1시간 캐싱
 def get_recommendations(books):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
@@ -143,7 +156,20 @@ def get_recommendations(books):
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
     try:
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=30)
+        
+        # 429 에러 처리
+        if response.status_code == 429:
+            st.error("⏳ API 요청 한도 초과 (429 에러)")
+            st.info("""
+            **대기 시간 안내:**
+            - 분당 한도 초과: 1-2분 후 재시도
+            - 일일 한도 초과: 내일 다시 시도
+            
+            💡 **팁**: Google AI Studio에서 API 키 사용량을 확인할 수 있습니다.
+            """)
+            return None
+            
         response.raise_for_status()
         result = response.json()
         
