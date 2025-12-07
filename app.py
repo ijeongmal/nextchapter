@@ -77,13 +77,15 @@ def create_graph(books):
     }}
     """
     
-    # 시도할 모델 우선순위 목록
+    # 시도할 모델 우선순위 목록 (최신 모델 기준)
     model_priority = [
-        'models/gemini-1.5-flash-latest',
-        'models/gemini-1.5-flash',
-        'models/gemini-1.5-pro-latest',
-        'models/gemini-1.5-pro',
-        'models/gemini-pro'
+        'models/gemini-2.5-flash',           # 가장 최신이고 빠름
+        'models/gemini-flash-latest',        # 최신 flash 버전
+        'models/gemini-2.0-flash',           # 안정적인 2.0
+        'models/gemini-2.0-flash-001',       # 2.0 고정 버전
+        'models/gemini-2.5-pro',             # 강력한 버전
+        'models/gemini-pro-latest',          # 최신 pro
+        'models/gemini-2.0-flash-lite',      # 가벼운 버전
     ]
     
     # 사용 가능한 모델 확인
