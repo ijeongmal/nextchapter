@@ -44,7 +44,7 @@ with st.sidebar:
 
 # 6. 그래프 생성 로직
 def create_graph(books):
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = f"""
     다음 3권의 책을 기반으로 도서 추천 네트워크를 만들어줘: {books}
