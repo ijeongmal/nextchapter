@@ -4,7 +4,7 @@ from pyvis.network import Network
 import requests
 import json
 import streamlit.components.v1 as components
-import re # 정규표현식 도구 추가
+import re
 
 # 1. 페이지 설정 및 폰트 로드
 st.set_page_config(page_title="Literary Nexus", layout="wide")
@@ -51,7 +51,6 @@ def create_tooltip_html(node_data):
     reason = node_data.get('reason', '상세 분석 내용이 없습니다.')
     summary = node_data.get('summary', '줄거리 정보가 없습니다.')
     
-    # 줄바꿈 제거 (HTML 렌더링 오류 방지)
     html = f"""
     <div style="font-family: 'Noto Sans KR', sans-serif; background-color: {bg_color}; color: {text_color}; padding: 15px; border-radius: 12px; width: 300px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #333; text-align: left;">
         <div style="display: inline-block; background-color: {accent_color}; color: #1e1e1e; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px;">
@@ -68,17 +67,16 @@ def create_tooltip_html(node_data):
     """
     return html.replace("\n", "")
 
-# 🌟 JSON 추출 도우미 함수 (핵심 추가!)
+# 6. JSON 추출 도우미 함수
 def extract_json(text):
     try:
-        # 1. 가장 기본적인 JSON 파싱 시도
         return json.loads(text)
     except json.JSONDecodeError:
         pass
     
     try:
-        # 2. 앞뒤 잡담 제거하고 { } 사이의 내용만 추출 시도
-        match = re.search(r'\{.*\}', text, re.DOTALL)
+        # 중괄호 { } 또는 대괄호 [ ] 패턴 찾기
+        match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
         if match:
             json_str = match.group(0)
             return json.loads(json_str)
@@ -87,7 +85,7 @@ def extract_json(text):
         
     return None
 
-# 6. 그래프 생성 로직
+# 7. 그래프 생성 로직
 def get_recommendations(books):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
@@ -95,13 +93,12 @@ def get_recommendations(books):
     사용자가 입력한 인생 책 3권: {books}
     
     [역할]
-    당신은 독자의 내면과 영혼을 꿰뚫어 보는 '문학 큐레이터'입니다.
-    책이 가진 고유의 **'분위기(Vibe)', '정서적 결', '철학적 깊이'** 등 포괄적인 취향을 분석하여 책을 추천하십시오.
+    당신은 '문학 큐레이터'입니다. 책의 **'분위기', '정서', '철학'** 등 포괄적인 취향을 분석하여 책을 추천하십시오.
     
-    [데이터 형식 조건 - 매우 중요]
+    [데이터 형식 조건]
     1. 총 15개 내외의 노드 생성.
-    2. 반드시 유효한 JSON 포맷이어야 함. 마크다운 코드블럭(```json) 사용 금지. 그냥 텍스트로 JSON만 출력할 것.
-    3. 키 이름: "id"(책제목), "author"(저자), "group"("Seed" or "Recommended"), "summary"(한줄요약), "reason"(추천이유).
+    2. JSON 포맷 필수. 키 이름: "id", "author", "group", "summary", "reason".
+    3. 구조: {{ "nodes": [ ... ], "edges": [ ... ] }} 형태를 반드시 유지할 것.
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -111,34 +108,30 @@ def get_recommendations(books):
         response.raise_for_status()
         result = response.json()
         
-        # 응답 확인
         if 'candidates' in result and result['candidates']:
             raw_text = result['candidates'][0]['content']['parts'][0]['text']
-            
-            # 🌟 잡담 제거 및 JSON 추출 (강화됨)
             cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
-            data = extract_json(cleaned_text)
-            
-            if data is None:
-                # 추출 실패 시 디버깅용으로 원본 텍스트 출력
-                st.error("AI가 올바른 데이터를 보내지 않았습니다. 원본 응답:")
-                st.code(raw_text) # 화면에 원본을 보여줌
-                return None
-            
-            return data
+            return extract_json(cleaned_text)
         else:
-            st.error("AI 응답이 비어있습니다. (Safety Filter 문제일 수 있음)")
             return None
-            
     except Exception as e:
         st.error(f"서버 통신 오류 발생: {e}")
         return None
 
-# 7. Pyvis 시각화 함수
+# 8. Pyvis 시각화 함수 (🌟 여기가 수정되었습니다!)
 def visualize_network(data):
     net = Network(height="650px", width="100%", bgcolor="#0e1117", font_color="white")
     
-    # 둥실둥실 물리 엔진
+    # 🌟 [긴급 패치] 데이터가 리스트(List)로 들어올 경우, 딕셔너리로 강제 변환
+    if isinstance(data, list):
+        # AI가 리스트만 줬다면, 그걸 'nodes'로 간주하고 'edges'는 빈 리스트로 처리
+        data = {'nodes': data, 'edges': []}
+    
+    # 데이터가 딕셔너리가 아니거나 비어있으면 중단
+    if not isinstance(data, dict):
+        st.error("데이터 형식이 올바르지 않습니다. 다시 시도해주세요.")
+        return None
+
     net.force_atlas_2based(
         gravity=-80,
         central_gravity=0.01,
@@ -147,6 +140,7 @@ def visualize_network(data):
         damping=0.4
     )
     
+    # .get()을 이제 안전하게 쓸 수 있음
     for node in data.get('nodes', []):
         if 'id' not in node:
             node['id'] = node.get('title', 'Unknown Book')
@@ -181,23 +175,28 @@ def visualize_network(data):
     
     return net
 
-# 8. 메인 실행
+# 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
     with st.spinner("AI가 당신의 독서 취향을 우주에 연결하고 있습니다..."):
         data = get_recommendations([book1, book2, book3])
         
         if data:
             try:
-                net = visualize_network(data)
-                
-                path = "tmp_network.html"
-                net.save_graph(path)
-                
-                with open(path, 'r', encoding='utf-8') as f:
-                    source_code = f.read()
-                
-                components.html(source_code, height=670)
-                st.success("분석 완료! 노드 위에 마우스를 올려보세요.")
+                # 데이터 유효성 검사 추가
+                if data:
+                    net = visualize_network(data)
+                    
+                    if net:
+                        path = "tmp_network.html"
+                        net.save_graph(path)
+                        
+                        with open(path, 'r', encoding='utf-8') as f:
+                            source_code = f.read()
+                        
+                        components.html(source_code, height=670)
+                        st.success("분석 완료! 노드 위에 마우스를 올려보세요.")
+                else:
+                    st.error("AI가 유효한 데이터를 반환하지 못했습니다. 다시 시도해주세요.")
                 
             except Exception as e:
                 st.error(f"시각화 처리 중 오류가 발생했습니다: {e}")
