@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 import json
 import os
+import time
 
 # 1. 페이지 설정
 st.set_page_config(page_title="Literary Nexus", layout="wide")
@@ -42,7 +43,7 @@ with st.sidebar:
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 6. 그래프 생성 로직 (신규 SDK 방식)
+# 6. 그래프 생성 로직 (재시도 기능 추가)
 def create_graph(books):
     if not client:
         st.error("클라이언트가 초기화되지 않았습니다.")
@@ -68,17 +69,32 @@ def create_graph(books):
     }}
     """
     
-    try:
-        # ✅ 무료 할당량이 더 넉넉한 모델 사용
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',  # 무료 할당량: 분당 15회, 일당 1500회
-            contents=prompt
-        )
-        text = response.text.replace("```json", "").replace("```", "")
-        return json.loads(text)
-    except Exception as e:
-        st.error(f"AI 응답 오류: {e}")
-        return None
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # ✅ 신규 SDK는 모델 ID만 사용 (models/ 접두사 불필요)
+            response = client.models.generate_content(
+                model='gemini-2.0-flash',  # 또는 gemini-2.5-flash, gemini-1.5-flash
+                contents=prompt
+            )
+            text = response.text.replace("```json", "").replace("```", "")
+            return json.loads(text)
+        except Exception as e:
+            error_str = str(e)
+            if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
+                if attempt < max_retries - 1:
+                    wait_time = 10 * (attempt + 1)  # 10초, 20초, 30초
+                    st.warning(f"할당량 초과. {wait_time}초 후 재시도합니다... (시도 {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    st.error("⚠️ API 무료 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.")
+                    st.info("💡 팁: Google AI Studio에서 새 API 키를 생성하거나, 몇 분 후 다시 시도해보세요.")
+                    return None
+            else:
+                st.error(f"AI 응답 오류: {e}")
+                return None
+    
+    return None
 
 # 7. 메인 실행 및 시각화
 if analyze_btn and book1 and book2 and book3:
