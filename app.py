@@ -115,7 +115,7 @@ def get_recommendations(books):
     1. Seed(입력책) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 확장.
     2. 총 노드 15개 이상.
     3. 오직 JSON 포맷만 출력.
-    4. 키 이름: "id", "title", "author", "group", "summary", "reason".
+    4. 키 이름: "id", "title" (책제목 필수), "author", "group", "summary", "reason".
     5. "title" 키에 책 제목을 정확히 기입할 것.
     """
     
@@ -138,6 +138,7 @@ def get_recommendations(books):
 
 # 8. Pyvis 시각화
 def visualize_network(data):
+    # 🌟 [설정] 배경 흰색, 글자 검정
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="#000000")
     
     if isinstance(data, list):
@@ -145,7 +146,8 @@ def visualize_network(data):
     if not isinstance(data, dict) or 'nodes' not in data:
         return None
     
-    # 🌟 [핵심] inherit: false 설정으로 선 색상 강제 고정
+    # 🌟 [핵심] inherit: false 및 색상 강제 지정 (#888888 회색)
+    # 이제 노드 색상과 상관없이 선은 무조건 회색입니다.
     options = """
     {
       "nodes": {
@@ -161,12 +163,12 @@ def visualize_network(data):
       },
       "edges": {
         "color": {
-          "color": "#555555",
+          "color": "#888888",
           "highlight": "#000000",
           "hover": "#000000",
           "inherit": false
         },
-        "width": 2,
+        "width": 1.5,
         "smooth": {
           "type": "continuous"
         }
@@ -215,12 +217,12 @@ def visualize_network(data):
             size=size
         )
     
-    # 🌟 엣지 추가 시에도 색상 안전장치 추가
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
         if source and target:
-            net.add_edge(source, target, color="#555555", width=2)
+            # 🌟 [이중 안전장치] 여기에서도 색상을 강제로 지정합니다.
+            net.add_edge(source, target, color="#888888")
             
     try:
         path = "tmp_network.html"
