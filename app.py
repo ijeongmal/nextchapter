@@ -112,7 +112,7 @@ def extract_json(text):
         pass
     return None
 
-# 7. 그래프 생성 로직 (🔥 더 명확한 프롬프트)
+# 7. 그래프 생성 로직 (🔥 재시도 로직 추가)
 @st.cache_data(ttl=3600)  # 1시간 캐싱
 def get_recommendations(books):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
@@ -155,50 +155,95 @@ def get_recommendations(books):
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    try:
-        response = requests.post(url, json=payload, timeout=30)
-        
-        # 429 에러 처리
-        if response.status_code == 429:
-            st.error("⏳ API 요청 한도 초과 (429 에러)")
-            st.info("""
-            **대기 시간 안내:**
-            - 분당 한도 초과: 1-2분 후 재시도
-            - 일일 한도 초과: 내일 다시 시도
+    # 🔥 재시도 로직 (최대 3번 시도)
+    max_retries = 3
+    retry_delays = [2, 5, 10]  # 재시도 대기 시간 (초)
+    
+    for attempt in range(max_retries):
+        try:
+            # 타임아웃 60초로 증가
+            response = requests.post(url, json=payload, timeout=60)
             
-            💡 **팁**: Google AI Studio에서 API 키 사용량을 확인할 수 있습니다.
+            # 429 에러 처리
+            if response.status_code == 429:
+                st.error("⏳ API 요청 한도 초과 (429 에러)")
+                st.info("""
+                **대기 시간 안내:**
+                - 분당 한도 초과: 1-2분 후 재시도
+                - 일일 한도 초과: 내일 다시 시도
+                
+                💡 **팁**: Google AI Studio에서 API 키 사용량을 확인할 수 있습니다.
+                """)
+                return None
+            
+            # 503 서비스 일시 중단 (재시도 가능)
+            if response.status_code == 503 and attempt < max_retries - 1:
+                st.warning(f"⚠️ 서버 일시 중단. {retry_delays[attempt]}초 후 재시도... ({attempt + 1}/{max_retries})")
+                import time
+                time.sleep(retry_delays[attempt])
+                continue
+                
+            response.raise_for_status()
+            result = response.json()
+            
+            if 'candidates' in result and result['candidates']:
+                raw_text = result['candidates'][0]['content']['parts'][0]['text']
+                cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
+                data = extract_json(cleaned_text)
+                
+                # 🔥 디버깅 정보 출력
+                if data:
+                    st.write(f"✅ 노드 개수: {len(data.get('nodes', []))}")
+                    st.write(f"✅ 엣지 개수: {len(data.get('edges', []))}")
+                    
+                    # ID 매칭 검증
+                    node_ids = {n.get('id') for n in data.get('nodes', [])}
+                    for edge in data.get('edges', []):
+                        src = edge.get('source')
+                        tgt = edge.get('target')
+                        if src not in node_ids:
+                            st.warning(f"⚠️ 엣지 소스 '{src}'가 노드에 없습니다")
+                        if tgt not in node_ids:
+                            st.warning(f"⚠️ 엣지 타겟 '{tgt}'가 노드에 없습니다")
+                
+                return data
+            else:
+                return None
+                
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                st.warning(f"⏱️ 응답 시간 초과. {retry_delays[attempt]}초 후 재시도... ({attempt + 1}/{max_retries})")
+                import time
+                time.sleep(retry_delays[attempt])
+            else:
+                st.error("""
+                ❌ **API 응답 시간 초과**
+                
+                **해결 방법:**
+                1. 잠시 후 다시 시도해주세요
+                2. Google Gemini API 서버가 일시적으로 느릴 수 있습니다
+                3. 네트워크 연결 상태를 확인해주세요
+                """)
+                return None
+                
+        except requests.exceptions.ConnectionError:
+            st.error("""
+            ❌ **네트워크 연결 오류**
+            
+            인터넷 연결을 확인하고 다시 시도해주세요.
             """)
             return None
             
-        response.raise_for_status()
-        result = response.json()
-        
-        if 'candidates' in result and result['candidates']:
-            raw_text = result['candidates'][0]['content']['parts'][0]['text']
-            cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
-            data = extract_json(cleaned_text)
-            
-            # 🔥 디버깅 정보 출력
-            if data:
-                st.write(f"✅ 노드 개수: {len(data.get('nodes', []))}")
-                st.write(f"✅ 엣지 개수: {len(data.get('edges', []))}")
-                
-                # ID 매칭 검증
-                node_ids = {n.get('id') for n in data.get('nodes', [])}
-                for edge in data.get('edges', []):
-                    src = edge.get('source')
-                    tgt = edge.get('target')
-                    if src not in node_ids:
-                        st.warning(f"⚠️ 엣지 소스 '{src}'가 노드에 없습니다")
-                    if tgt not in node_ids:
-                        st.warning(f"⚠️ 엣지 타겟 '{tgt}'가 노드에 없습니다")
-            
-            return data
-        else:
-            return None
-    except Exception as e:
-        st.error(f"통신 오류: {e}")
-        return None
+        except Exception as e:
+            if attempt < max_retries - 1:
+                st.warning(f"⚠️ 오류 발생: {str(e)[:100]}. 재시도 중...")
+                import time
+                time.sleep(retry_delays[attempt])
+            else:
+                st.error(f"❌ 통신 오류: {e}")
+                return None
+    
+    return None
 
 # 8. Pyvis 시각화 (🔥 노드 간격 대폭 증가)
 def visualize_network(data):
