@@ -43,11 +43,9 @@ with st.sidebar:
 
 # 5. 툴팁 HTML 생성 함수
 def create_tooltip_html(node_data):
-    # 🌟 [수정] id보다 title을 우선적으로 가져오도록 변경
-    # AI가 id에 "1", "A" 같은 걸 넣고 title에 진짜 제목을 넣을 때를 대비
+    # 데이터 가져오기 (title 우선)
     book_title = node_data.get('title') or node_data.get('id') or "제목 없음"
     
-    # 텍스트 안전 처리
     def clean(text):
         if not text: return ""
         return html.escape(str(text)).replace("'", "&#39;").replace('"', "&quot;")
@@ -117,8 +115,8 @@ def get_recommendations(books):
     1. Seed(입력책) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 확장.
     2. 총 노드 15개 이상.
     3. 오직 JSON 포맷만 출력.
-    4. 키 이름: "id", "title" (책제목 필수), "author", "group", "summary", "reason".
-    5. **중요**: "id"는 고유 식별자(숫자나 문자)여도 되지만, **"title"** 키에 반드시 책 제목을 한글로 정확히 적으세요.
+    4. 키 이름: "id", "title", "author", "group", "summary", "reason".
+    5. "title" 키에 책 제목을 정확히 기입할 것.
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -140,7 +138,6 @@ def get_recommendations(books):
 
 # 8. Pyvis 시각화
 def visualize_network(data):
-    # 🌟 [설정] 배경 흰색(#ffffff), 기본 글자 검정(#000000)
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="#000000")
     
     if isinstance(data, list):
@@ -148,9 +145,7 @@ def visualize_network(data):
     if not isinstance(data, dict) or 'nodes' not in data:
         return None
     
-    # 🌟 [핵심] 전체 옵션 설정 (여기서 선 색상을 강제합니다)
-    # edges: color를 진한 회색(#666666)으로 고정
-    # physics: 둥실둥실 효과
+    # 🌟 [핵심] inherit: false 설정으로 선 색상 강제 고정
     options = """
     {
       "nodes": {
@@ -166,11 +161,12 @@ def visualize_network(data):
       },
       "edges": {
         "color": {
-          "color": "#666666",
+          "color": "#555555",
           "highlight": "#000000",
-          "hover": "#000000"
+          "hover": "#000000",
+          "inherit": false
         },
-        "width": 1.5,
+        "width": 2,
         "smooth": {
           "type": "continuous"
         }
@@ -190,12 +186,9 @@ def visualize_network(data):
     net.set_options(options)
     
     for node in data.get('nodes', []):
-        # ID와 Title 처리 (가장 중요한 수정)
         node_id = node.get('id')
-        # 라벨(화면에 뜨는 글자)은 title이 있으면 title, 없으면 id 사용
         node_label = node.get('title') or str(node_id)
         
-        # ID가 없으면 에러나므로 임의 지정
         if not node_id:
             node_id = node_label
             node['id'] = node_id
@@ -203,36 +196,35 @@ def visualize_network(data):
         group = node.get('group', 'Recommended')
         
         if group == 'Seed':
-            color = "#FF6B6B" # 코랄
+            color = "#FF6B6B"
             size = 45
         elif group == 'Level2':
-            color = "#FFD93D" # 노랑
+            color = "#FFD93D"
             size = 20
         else:
-            color = "#4ECDC4" # 민트
+            color = "#4ECDC4"
             size = 30
             
         tooltip_html = create_tooltip_html(node)
         
         net.add_node(
             node_id, 
-            label=node_label, # 🌟 여기가 'A' '1' 대신 '책제목'이 뜨게 하는 핵심
+            label=node_label,
             title=tooltip_html,
             color=color, 
             size=size
         )
     
+    # 🌟 엣지 추가 시에도 색상 안전장치 추가
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
         if source and target:
-            net.add_edge(source, target)
+            net.add_edge(source, target, color="#555555", width=2)
             
-    # CSS 강제 주입 (툴팁 초기화)
     try:
         path = "tmp_network.html"
         net.save_graph(path)
-        
         with open(path, 'r', encoding='utf-8') as f:
             html_content = f.read()
             
@@ -247,7 +239,6 @@ def visualize_network(data):
         }
         </style>
         """
-        
         final_html = html_content.replace('</head>', f'{custom_css}</head>')
         return final_html
         
