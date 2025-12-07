@@ -25,7 +25,7 @@ html, body, [class*="css"] {
 
 # 2. 제목 및 설명
 st.title("🌌 AI 도서 취향 탐색기")
-st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**를 분석하여 당신만의 독서 우주를 만들어 드립니다.")
+st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**를 분석하여 당신만의 도서 우주를 만들어 드립니다.")
 
 # 3. API 키 가져오기
 try:
@@ -42,7 +42,7 @@ with st.sidebar:
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 5. 툴팁 HTML 생성 함수 (텍스트 가독성 강제 고정)
+# 5. 툴팁 HTML 생성 함수 (화이트 테마 적용)
 def create_tooltip_html(node_data):
     book_title = node_data.get('id') or node_data.get('title') or "제목 없음"
     author = node_data.get('author', '저자 미상')
@@ -57,33 +57,33 @@ def create_tooltip_html(node_data):
     summary = html.escape(str(summary))
 
     if group == 'Seed':
-        header_bg = "#FF6B6B"
+        header_bg = "#FF6B6B" # 코랄
         badge = "SEED BOOK"
     elif group == 'Level2':
-        header_bg = "#FFD93D"
+        header_bg = "#FFD93D" # 노랑
         badge = "DEEP DIVE"
     else:
-        header_bg = "#4ECDC4"
+        header_bg = "#4ECDC4" # 민트
         badge = "RECOMMENDED"
 
-    # 🌟 [수정] 텍스트 색상을 style='color: white !important;'로 강제
+    # 🌟 [수정] 카드 배경을 흰색으로, 글씨를 검정색으로 변경
     tooltip_html = f"""
-    <div class="book-card" style="color: white !important;">
+    <div class="book-card">
         <div class="card-header" style="background-color: {header_bg};">
-            <span class="badge" style="color: #000000; font-weight: 800;">{badge}</span>
+            <span class="badge">{badge}</span>
         </div>
         <div class="card-body">
-            <h3 style="color: #ffffff !important; margin: 0 0 5px 0;">{book_title}</h3>
-            <p style="color: #cccccc !important; margin: 0 0 15px 0; font-size: 13px;">👤 {author}</p>
+            <h3>{book_title}</h3>
+            <p class="author">👤 {author}</p>
             
             <div class="section-box" style="border-left: 3px solid {header_bg};">
-                <p class="section-title" style="color: #aaaaaa !important;">💡 ANALYSIS (추천 이유)</p>
-                <p class="section-content" style="color: #ffffff !important;">{reason}</p>
+                <p class="section-title">💡 ANALYSIS (추천 이유)</p>
+                <p class="section-content">{reason}</p>
             </div>
             
             <div class="section-box">
-                <p class="section-title" style="color: #aaaaaa !important;">📖 SUMMARY (줄거리)</p>
-                <p class="section-content" style="color: #dddddd !important;">{summary}</p>
+                <p class="section-title">📖 SUMMARY (줄거리)</p>
+                <p class="section-content">{summary}</p>
             </div>
         </div>
     </div>
@@ -142,9 +142,10 @@ def get_recommendations(books):
         st.error(f"통신 오류: {e}")
         return None
 
-# 8. Pyvis 시각화 (CSS 강제 주입 포함)
+# 8. Pyvis 시각화 (화이트 테마 설정)
 def visualize_network(data):
-    net = Network(height="750px", width="100%", bgcolor="#0e1117", font_color="white")
+    # 🌟 [수정] 배경색 흰색(#ffffff), 기본 글자색 검정(#000000)으로 변경
+    net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="black")
     
     if isinstance(data, list):
         data = {'nodes': data, 'edges': []}
@@ -178,26 +179,26 @@ def visualize_network(data):
             
         tooltip_html = create_tooltip_html(node)
         
-        # 🌟 노드 추가 시 label 속성 명시 (책 제목이 보이도록)
         net.add_node(
             node['id'], 
-            label=str(node['id']),  # 여기가 책 제목 표시 부분
-            title=tooltip_html,     # 여기가 마우스 올리면 뜨는 부분
+            label=str(node['id']),
+            title=tooltip_html,
             color=color, 
             size=size,
             borderWidth=2,
             borderWidthSelected=4,
-            # 폰트 설정 (라벨 색상 흰색 강제)
-            font={'face': 'Noto Sans KR', 'size': 16, 'color': 'white', 'strokeWidth': 3, 'strokeColor': '#000000'}
+            # 🌟 [수정] 폰트 색상을 검정으로, 외곽선을 흰색으로 변경 (가독성 UP)
+            font={'face': 'Noto Sans KR', 'size': 16, 'color': 'black', 'strokeWidth': 3, 'strokeColor': '#ffffff'}
         )
     
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
         if source and target:
-            net.add_edge(source, target, color="rgba(200, 200, 255, 0.2)", width=1)
+            # 🌟 [수정] 연결선 색상을 진한 회색(#999999)으로 변경하여 흰 배경에서 잘 보이게 함
+            net.add_edge(source, target, color="#999999", width=1)
             
-    # 🌟 CSS 강제 주입 (검정 글씨 문제 해결)
+    # 🌟 CSS 강제 주입 (화이트 카드 디자인)
     try:
         path = "tmp_network.html"
         net.save_graph(path)
@@ -205,44 +206,65 @@ def visualize_network(data):
         with open(path, 'r', encoding='utf-8') as f:
             html_content = f.read()
             
-        # CSS 스타일: !important를 사용하여 모든 방해 요소를 무시하고 색상 적용
         custom_css = """
         <style>
-        /* 기본 툴팁 투명화 및 초기화 */
+        /* 기본 툴팁 초기화 */
         div.vis-tooltip {
             background-color: transparent !important;
             border: none !important;
             box-shadow: none !important;
             padding: 0 !important;
             font-family: 'Noto Sans KR', sans-serif !important;
-            color: white !important; /* 기본 글자색 흰색 */
         }
         
-        /* 카드 디자인 */
+        /* 🌟 [수정] 화이트 카드 디자인 */
         .book-card {
-            background-color: #1E222B !important; /* 짙은 남색 배경 */
-            color: #ffffff !important; /* 흰색 글자 */
+            background-color: #ffffff !important; /* 흰색 배경 */
+            color: #000000 !important; /* 검정 글씨 */
             width: 350px;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            border: 1px solid #555;
-            backdrop-filter: blur(5px);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15); /* 부드러운 그림자 */
+            border: 1px solid #e0e0e0; /* 연한 테두리 */
             text-align: left;
         }
         
         .card-header {
-            padding: 8px 15px;
+            padding: 10px 15px;
             display: flex;
             align-items: center;
+        }
+        
+        .badge {
+            color: #000000;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: rgba(255,255,255,0.5); /* 뱃지 배경 투명도 조절 */
+            text-transform: uppercase;
         }
         
         .card-body {
             padding: 15px;
         }
         
+        .card-body h3 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #222222 !important; /* 진한 검정 */
+        }
+        
+        .author {
+            margin: 0 0 15px 0;
+            font-size: 13px;
+            color: #666666 !important; /* 회색 */
+        }
+        
+        /* 🌟 [수정] 내용 박스: 연한 회색 배경 */
         .section-box {
-            background-color: #252A36 !important;
+            background-color: #f8f9fa !important;
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 10px;
@@ -252,6 +274,7 @@ def visualize_network(data):
             margin: 0 0 5px 0;
             font-size: 11px;
             font-weight: bold;
+            color: #888888 !important;
             text-transform: uppercase;
         }
         
@@ -259,6 +282,7 @@ def visualize_network(data):
             margin: 0;
             font-size: 13px;
             line-height: 1.5;
+            color: #333333 !important; /* 본문 내용 진한 회색 */
         }
         </style>
         """
@@ -272,7 +296,7 @@ def visualize_network(data):
 
 # 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    with st.spinner("AI가 당신의 독서 지도를 그리는 중..."):
+    with st.spinner("AI가 꼬리에 꼬리를 무는 독서 지도를 그리는 중..."):
         data = get_recommendations([book1, book2, book3])
         
         if data:
