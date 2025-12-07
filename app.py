@@ -100,7 +100,7 @@ def extract_json(text):
         pass
     return None
 
-# 7. 그래프 생성 로직 (🌟 연결선과 라벨 강제 요청)
+# 7. 그래프 생성 로직 (🔥 더 명확한 프롬프트)
 def get_recommendations(books):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
@@ -108,24 +108,30 @@ def get_recommendations(books):
     사용자가 입력한 인생 책 3권: {books}
     
     [임무]
-    책의 정서, 문체, 철학을 연결하여 '추천 지도'를 만드세요.
+    이 3권의 책을 기반으로 네트워크 그래프용 데이터를 생성하세요.
     
-    [필수 조건]
-    1. Seed(입력책) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 연결.
-    2. 총 노드 15개 이상.
-    3. 오직 JSON 포맷만 출력.
-    4. **Edges(연결선)**: 반드시 노드 간의 연결 관계를 포함해야 함.
-    5. **Edge Label(관계 키워드)**: 연결된 두 책 사이의 공통점을 2~4단어의 짧은 키워드로 작성 (예: "부조리 철학 공유", "성장과 고통", "디스토피아적 세계관").
+    [규칙]
+    1. 입력받은 3권은 "Seed" 그룹으로 지정
+    2. 각 Seed 책마다 3-4권의 유사한 책을 "Recommended" 그룹으로 추천
+    3. 추가로 2-3권의 심화 책을 "Level2" 그룹으로 추천
+    4. 총 15-18개 노드 생성
+    5. **중요**: 모든 추천 책은 반드시 하나 이상의 Seed 책과 연결되어야 함
+    6. edges의 source와 target은 반드시 nodes에 있는 id와 정확히 일치해야 함
+    7. edge label은 연결 이유를 2-4단어로 표현 (예: "실존주의 철학", "성장과 고독", "디스토피아")
     
-    [JSON 구조]
+    [JSON 형식 - 이 형식만 출력]
     {{
       "nodes": [
-        {{"id": "책제목", "title": "책제목(필수)", "author": "저자", "group": "Seed/Recommended", "summary": "...", "reason": "..."}}
+        {{"id": "데미안", "title": "데미안", "author": "헤르만 헤세", "group": "Seed", "summary": "...", "reason": "입력하신 책입니다"}},
+        {{"id": "수레바퀴 아래서", "title": "수레바퀴 아래서", "author": "헤르만 헤세", "group": "Recommended", "summary": "...", "reason": "데미안과 유사한 성장소설"}}
       ],
       "edges": [
-        {{"source": "책제목A", "target": "책제목B", "label": "관계 키워드(필수)"}}
+        {{"source": "데미안", "target": "수레바퀴 아래서", "label": "성장과 고독"}},
+        {{"source": "데미안", "target": "차라투스트라는 이렇게 말했다", "label": "니체 철학"}}
       ]
     }}
+    
+    주의: 반드시 유효한 JSON만 출력하고, 설명이나 마크다운은 포함하지 마세요.
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -138,16 +144,32 @@ def get_recommendations(books):
         if 'candidates' in result and result['candidates']:
             raw_text = result['candidates'][0]['content']['parts'][0]['text']
             cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
-            return extract_json(cleaned_text)
+            data = extract_json(cleaned_text)
+            
+            # 🔥 디버깅 정보 출력
+            if data:
+                st.write(f"✅ 노드 개수: {len(data.get('nodes', []))}")
+                st.write(f"✅ 엣지 개수: {len(data.get('edges', []))}")
+                
+                # ID 매칭 검증
+                node_ids = {n.get('id') for n in data.get('nodes', [])}
+                for edge in data.get('edges', []):
+                    src = edge.get('source')
+                    tgt = edge.get('target')
+                    if src not in node_ids:
+                        st.warning(f"⚠️ 엣지 소스 '{src}'가 노드에 없습니다")
+                    if tgt not in node_ids:
+                        st.warning(f"⚠️ 엣지 타겟 '{tgt}'가 노드에 없습니다")
+            
+            return data
         else:
             return None
     except Exception as e:
         st.error(f"통신 오류: {e}")
         return None
 
-# 8. Pyvis 시각화 (🌟 연결선 라벨 설정 추가)
+# 8. Pyvis 시각화 (🔥 노드 간격 대폭 증가)
 def visualize_network(data):
-    # 배경 흰색
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="#000000")
     
     if isinstance(data, list):
@@ -155,34 +177,65 @@ def visualize_network(data):
     if not isinstance(data, dict) or 'nodes' not in data:
         return None
     
-    # 🌟 [설정] 연결선 위에 글씨가 잘 보이도록 폰트 설정 추가
+    # 🔥 물리 엔진 설정 개선: 노드 간격 3배 증가
     options = """
     {
       "nodes": {
-        "font": { "size": 16, "face": "Noto Sans KR", "color": "#000000", "strokeWidth": 3, "strokeColor": "#ffffff" },
+        "font": { 
+          "size": 16, 
+          "face": "Noto Sans KR", 
+          "color": "#000000", 
+          "strokeWidth": 3, 
+          "strokeColor": "#ffffff",
+          "bold": true
+        },
         "borderWidth": 2,
-        "borderWidthSelected": 4
+        "borderWidthSelected": 4,
+        "shadow": {
+          "enabled": true,
+          "size": 10
+        }
       },
       "edges": {
-        "color": { "color": "#888888", "inherit": false },
-        "width": 1.5,
-        "smooth": { "type": "continuous" },
+        "color": { "color": "#666666", "inherit": false },
+        "width": 2,
+        "smooth": { 
+          "type": "continuous",
+          "roundness": 0.5
+        },
         "font": {
-          "size": 11,
+          "size": 12,
           "face": "Noto Sans KR",
           "align": "middle",
           "background": "#ffffff",
-          "strokeWidth": 0
+          "strokeWidth": 0,
+          "bold": true
+        },
+        "arrows": {
+          "to": {
+            "enabled": false
+          }
         }
       },
       "physics": {
+        "enabled": true,
+        "solver": "forceAtlas2Based",
         "forceAtlas2Based": {
-          "gravitationalConstant": -100,
-          "centralGravity": 0.005,
-          "springLength": 250,
-          "springConstant": 0.04,
-          "damping": 0.5
+          "gravitationalConstant": -200,
+          "centralGravity": 0.01,
+          "springLength": 350,
+          "springConstant": 0.02,
+          "damping": 0.7,
+          "avoidOverlap": 1
+        },
+        "stabilization": {
+          "enabled": true,
+          "iterations": 200
         }
+      },
+      "interaction": {
+        "hover": true,
+        "tooltipDelay": 100
       }
     }
     """
@@ -201,13 +254,13 @@ def visualize_network(data):
         
         if group == 'Seed':
             color = "#FF6B6B"
-            size = 45
+            size = 50
         elif group == 'Level2':
             color = "#FFD93D"
-            size = 20
+            size = 25
         else:
             color = "#4ECDC4"
-            size = 30
+            size = 35
             
         tooltip_html = create_tooltip_html(node)
         
@@ -219,15 +272,18 @@ def visualize_network(data):
             size=size
         )
     
-    # 🌟 엣지(연결선) 및 라벨(키워드) 추가
+    # 🔥 엣지 추가 (더 명확한 라벨)
+    edge_count = 0
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
-        label = edge.get('label', '') # 관계 키워드 가져오기
+        label = edge.get('label', '관계')
         
         if source and target:
-            # label 인자에 키워드를 넣으면 선 위에 글씨가 뜹니다
-            net.add_edge(source, target, label=label)
+            net.add_edge(source, target, label=label, title=label)
+            edge_count += 1
+    
+    st.write(f"🔗 생성된 연결선: {edge_count}개")
             
     # CSS 강제 주입
     try:
@@ -245,6 +301,9 @@ def visualize_network(data):
             padding: 0 !important;
             font-family: 'Noto Sans KR', sans-serif !important;
         }
+        canvas {
+            outline: none !important;
+        }
         </style>
         """
         final_html = html_content.replace('</head>', f'{custom_css}</head>')
@@ -260,16 +319,15 @@ if analyze_btn and book1 and book2 and book3:
         data = get_recommendations([book1, book2, book3])
         
         if data:
-            # 엣지 데이터가 비어있을 경우를 대비한 경고
             if not data.get('edges'):
-                st.warning("AI가 책은 찾았으나 연결 관계를 생성하지 못했습니다. 다시 시도해보세요.")
-            
-            final_html = visualize_network(data)
-            if final_html:
-                components.html(final_html, height=770)
-                st.success("✅ 분석 완료! 선 위의 키워드를 확인해보세요.")
+                st.error("❌ AI가 연결선(edges)을 생성하지 못했습니다. 다시 시도해주세요.")
             else:
-                st.error("시각화 생성 실패")
+                final_html = visualize_network(data)
+                if final_html:
+                    components.html(final_html, height=770)
+                    st.success("✅ 분석 완료! 노드를 드래그하거나 줌인/줌아웃 해보세요.")
+                else:
+                    st.error("시각화 생성 실패")
         else:
             st.error("AI 응답이 없습니다. 잠시 후 다시 시도해주세요.")
 
