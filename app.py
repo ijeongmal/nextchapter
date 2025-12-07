@@ -72,9 +72,9 @@ def create_graph(books):
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            # ✅ 신규 SDK는 모델 ID만 사용 (models/ 접두사 불필요)
+            # ✅ 무료 할당량이 가장 넉넉한 모델 (분당 15회, 일당 1500회)
             response = client.models.generate_content(
-                model='gemini-2.0-flash',  # 또는 gemini-2.5-flash, gemini-1.5-flash
+                model='gemini-1.5-flash',
                 contents=prompt
             )
             text = response.text.replace("```json", "").replace("```", "")
