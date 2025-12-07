@@ -1,13 +1,4 @@
-# 5. 툴팁 HTML 생성 함수 (🎨 개선된 디자인)
-def create_tooltip_html(node_data):
-    book_title = node_data.get('title') or node_data.get('id') or "제목 없음"
-    author = node_data.get('author', '저자 미상')
-    reason = node_data.get('reason', '추천 이유가 없습니다.')
-    summary = node_data.get('summary', '줄거리 정보가 없습니다.')
-    group = node_data.get('group', 'Recommended')
-
-    if group == 'Seed':
-        badge_bgimport streamlit as st
+import streamlit as st
 from pyvis.network import Network
 import requests
 import json
@@ -62,50 +53,26 @@ with st.sidebar:
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 5. 툴팁 HTML 생성 함수
-def create_tooltip_html(node_data):
+# 5. 간단한 텍스트 툴팁 생성 (HTML 제거)
+def create_tooltip_text(node_data):
+    """HTML 없이 순수 텍스트로만 툴팁 생성"""
     book_title = node_data.get('title') or node_data.get('id') or "제목 없음"
-    
-    def clean(text):
-        if not text: return ""
-        return html.escape(str(text)).replace("'", "&#39;").replace('"', "&quot;")
-
-    book_title_safe = clean(book_title)
-    author = clean(node_data.get('author', '저자 미상'))
-    reason = clean(node_data.get('reason', '분석 내용이 없습니다.'))
-    summary = clean(node_data.get('summary', '줄거리 정보가 없습니다.'))
+    author = node_data.get('author', '저자 미상')
+    reason = node_data.get('reason', '추천 이유가 없습니다.')
+    summary = node_data.get('summary', '줄거리 정보가 없습니다.')
     group = node_data.get('group', 'Recommended')
-
+    
     if group == 'Seed':
-        badge_bg = "#FF6B6B"
-        badge_text = "SEED BOOK"
+        badge = "🔴 입력한 책"
     elif group == 'Level2':
-        badge_bg = "#FFD93D"
-        badge_text = "DEEP DIVE"
+        badge = "🟡 심화 추천"
     else:
-        badge_bg = "#4ECDC4"
-        badge_text = "RECOMMENDED"
-
-    tooltip_html = f"""
-    <div style='background-color: #ffffff; color: #000000; padding: 18px; border-radius: 16px; width: 340px; box-shadow: 0 15px 40px rgba(0,0,0,0.25); border: 2px solid #e0e0e0; font-family: "Noto Sans KR", sans-serif; text-align: left;'>
-        <div style='margin-bottom: 12px;'>
-            <span style='background-color: {badge_bg}; color: #ffffff; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 6px; letter-spacing: 0.5px;'>{badge_text}</span>
-        </div>
-        <h3 style='margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #000000; line-height: 1.3;'>{book_title_safe}</h3>
-        <p style='margin: 0 0 16px 0; font-size: 14px; color: #666666; font-weight: 500;'>👤 {author}</p>
-        
-        <div style='background-color: #f0f4ff; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 5px solid {badge_bg};'>
-            <p style='margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #333333; letter-spacing: 0.5px;'>💡 추천 이유</p>
-            <p style='margin: 0; font-size: 13px; line-height: 1.6; color: #000000; font-weight: 500;'>{reason}</p>
-        </div>
-        
-        <div style='background-color: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 5px solid #cccccc;'>
-            <p style='margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #333333; letter-spacing: 0.5px;'>📖 줄거리</p>
-            <p style='margin: 0; font-size: 13px; line-height: 1.6; color: #000000; font-weight: 400;'>{summary}</p>
-        </div>
-    </div>
-    """
-    return tooltip_html.replace("\n", "").replace("\r", "").strip()
+        badge = "🔵 추천 도서"
+    
+    # 순수 텍스트로만 구성
+    tooltip = f"{badge}\n\n📚 {book_title}\n✍️ {author}\n\n💡 추천 이유:\n{reason}\n\n📖 줄거리:\n{summary}"
+    
+    return tooltip
 
 # 6. JSON 추출 도우미
 def extract_json(text):
@@ -141,21 +108,21 @@ def get_recommendations(books):
     6. edges의 source와 target은 반드시 nodes에 있는 id와 정확히 일치해야 함
     7. edge label은 연결 이유를 2-4단어로 표현 (예: "실존주의 철학", "성장과 고독", "디스토피아")
     8. **summary**: 각 책의 핵심 줄거리를 2-3문장으로 작성
-    9. **reason**: 왜 이 책을 추천하는지 구체적인 이유를 2-3문장으로 작성 (문체, 주제, 분위기 등)
+    9. **reason**: 왜 이 책을 추천하는지 구체적인 이유를 1-2문장으로 간결하게 작성
     
     [JSON 형식 - 이 형식만 출력]
     {{
       "nodes": [
         {{"id": "데미안", "title": "데미안", "author": "헤르만 헤세", "group": "Seed", 
           "summary": "한 소년의 성장 과정을 그린 소설로, 자아 발견의 여정을 담고 있습니다.", 
-          "reason": "입력하신 책입니다. 성장과 자아 탐구의 고전입니다."}},
-        {{"id": "수레바퀴 아래서", "title": "수레바퀴 아래서", "author": "헤르만 헤세", "group": "Recommended", 
-          "summary": "천재 소년의 비극적 몰락을 그린 성장소설입니다.", 
-          "reason": "데미안과 같은 작가의 작품으로, 교육 시스템 속 개인의 고독을 다룹니다."}}
+          "reason": "입력하신 책입니다."}},
+        {{"id": "한낮의 어둠", "title": "한낮의 어둠", "author": "아르투어 쾨슬러", "group": "Recommended", 
+          "summary": "스탈린 시대의 숙청을 배경으로, 한 혁명가의 고뇌와 이념적 갈등을 그린 정치 소설입니다.", 
+          "reason": "전체주의 체제에서의 신념과 도덕적 선택을 다룹니다."}}
       ],
       "edges": [
-        {{"source": "데미안", "target": "수레바퀴 아래서", "label": "성장과 고독"}},
-        {{"source": "데미안", "target": "차라투스트라는 이렇게 말했다", "label": "니체 철학"}}
+        {{"source": "데미안", "target": "한낮의 어둠", "label": "신념과 선택"}},
+        {{"source": "1984", "target": "한낮의 어둠", "label": "전체주의 비판"}}
       ]
     }}
     
@@ -166,14 +133,12 @@ def get_recommendations(books):
     
     # 🔥 재시도 로직 (최대 3번 시도)
     max_retries = 3
-    retry_delays = [2, 5, 10]  # 재시도 대기 시간 (초)
+    retry_delays = [2, 5, 10]
     
     for attempt in range(max_retries):
         try:
-            # 타임아웃 60초로 증가
             response = requests.post(url, json=payload, timeout=60)
             
-            # 429 에러 처리
             if response.status_code == 429:
                 st.error("⏳ API 요청 한도 초과 (429 에러)")
                 st.info("""
@@ -185,7 +150,6 @@ def get_recommendations(books):
                 """)
                 return None
             
-            # 503 서비스 일시 중단 (재시도 가능)
             if response.status_code == 503 and attempt < max_retries - 1:
                 st.warning(f"⚠️ 서버 일시 중단. {retry_delays[attempt]}초 후 재시도... ({attempt + 1}/{max_retries})")
                 import time
@@ -200,12 +164,10 @@ def get_recommendations(books):
                 cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
                 data = extract_json(cleaned_text)
                 
-                # 🔥 디버깅 정보 출력
                 if data:
                     st.write(f"✅ 노드 개수: {len(data.get('nodes', []))}")
                     st.write(f"✅ 엣지 개수: {len(data.get('edges', []))}")
                     
-                    # ID 매칭 검증
                     node_ids = {n.get('id') for n in data.get('nodes', [])}
                     for edge in data.get('edges', []):
                         src = edge.get('source')
@@ -236,11 +198,7 @@ def get_recommendations(books):
                 return None
                 
         except requests.exceptions.ConnectionError:
-            st.error("""
-            ❌ **네트워크 연결 오류**
-            
-            인터넷 연결을 확인하고 다시 시도해주세요.
-            """)
+            st.error("❌ 네트워크 연결 오류. 인터넷 연결을 확인하고 다시 시도해주세요.")
             return None
             
         except Exception as e:
@@ -254,7 +212,7 @@ def get_recommendations(books):
     
     return None
 
-# 8. Pyvis 시각화 (🔥 노드 간격 대폭 증가)
+# 8. Pyvis 시각화 + 커스텀 툴팁
 def visualize_network(data):
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="#000000")
     
@@ -263,7 +221,7 @@ def visualize_network(data):
     if not isinstance(data, dict) or 'nodes' not in data:
         return None
     
-    # 🔥 물리 엔진 설정 개선: 노드 간격 3배 증가
+    # 물리 엔진 설정
     options = """
     {
       "nodes": {
@@ -350,17 +308,17 @@ def visualize_network(data):
             color = "#4ECDC4"
             size = 35
             
-        tooltip_html = create_tooltip_html(node)
+        tooltip_text = create_tooltip_text(node)
         
         net.add_node(
             node_id, 
             label=node_label,
-            title=tooltip_html,
+            title=tooltip_text,  # 텍스트만 전달
             color=color, 
             size=size
         )
     
-    # 🔥 엣지 추가 (더 명확한 라벨)
+    # 엣지 추가
     edge_count = 0
     for edge in data.get('edges', []):
         source = edge.get('source')
@@ -373,35 +331,42 @@ def visualize_network(data):
     
     st.write(f"🔗 생성된 연결선: {edge_count}개")
             
-    # CSS 강제 주입
+    # HTML 생성 및 커스텀 CSS 추가
     try:
         path = "tmp_network.html"
         net.save_graph(path)
         with open(path, 'r', encoding='utf-8') as f:
             html_content = f.read()
             
-        custom_css = """
+        # 🎨 커스텀 툴팁 스타일
+        custom_style = """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap');
         
         div.vis-tooltip {
-            position: fixed !important;
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
             font-family: 'Noto Sans KR', sans-serif !important;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+            color: #000000 !important;
+            border: 2px solid #e0e0e0 !important;
+            border-radius: 16px !important;
+            padding: 20px !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+            max-width: 380px !important;
+            font-size: 14px !important;
+            line-height: 1.7 !important;
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            z-index: 999999 !important;
             pointer-events: none !important;
-            z-index: 9999 !important;
-            opacity: 1 !important;
-            visibility: visible !important;
         }
+        
         canvas {
             outline: none !important;
         }
         </style>
         """
-        final_html = html_content.replace('</head>', f'{custom_css}</head>')
+        
+        final_html = html_content.replace('</head>', f'{custom_style}</head>')
         return final_html
         
     except Exception as e:
@@ -420,7 +385,7 @@ if analyze_btn and book1 and book2 and book3:
                 final_html = visualize_network(data)
                 if final_html:
                     components.html(final_html, height=770)
-                    st.success("✅ 분석 완료! 노드를 드래그하거나 줌인/줌아웃 해보세요.")
+                    st.success("✅ 분석 완료! 노드에 마우스를 올려보세요 📚")
                 else:
                     st.error("시각화 생성 실패")
         else:
