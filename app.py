@@ -66,25 +66,25 @@ def create_tooltip_html(node_data):
         badge_text = "RECOMMENDED"
 
     tooltip_html = f"""
-    <div style='background-color: #ffffff; color: #000000; padding: 15px; border-radius: 12px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid #e0e0e0; font-family: "Noto Sans KR", sans-serif; text-align: left;'>
-        <div style='margin-bottom: 10px;'>
-            <span style='background-color: {badge_bg}; color: #000000; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px;'>{badge_text}</span>
+    <div style='background-color: #ffffff; color: #000000; padding: 18px; border-radius: 16px; width: 340px; box-shadow: 0 15px 40px rgba(0,0,0,0.25); border: 2px solid #e0e0e0; font-family: "Noto Sans KR", sans-serif; text-align: left;'>
+        <div style='margin-bottom: 12px;'>
+            <span style='background-color: {badge_bg}; color: #ffffff; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 6px; letter-spacing: 0.5px;'>{badge_text}</span>
         </div>
-        <h3 style='margin: 0 0 5px 0; font-size: 18px; font-weight: 700; color: #000000;'>{book_title_safe}</h3>
-        <p style='margin: 0 0 15px 0; font-size: 13px; color: #666666;'>👤 {author}</p>
+        <h3 style='margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #000000; line-height: 1.3;'>{book_title_safe}</h3>
+        <p style='margin: 0 0 16px 0; font-size: 14px; color: #666666; font-weight: 500;'>👤 {author}</p>
         
-        <div style='background-color: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid {badge_bg};'>
-            <p style='margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #555555;'>💡 ANALYSIS</p>
-            <p style='margin: 0; font-size: 12px; line-height: 1.5; color: #222222;'>{reason}</p>
+        <div style='background-color: #f0f4ff; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 5px solid {badge_bg};'>
+            <p style='margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #333333; letter-spacing: 0.5px;'>💡 추천 이유</p>
+            <p style='margin: 0; font-size: 13px; line-height: 1.6; color: #000000; font-weight: 500;'>{reason}</p>
         </div>
         
-        <div style='background-color: #f8f9fa; padding: 10px; border-radius: 8px; border-left: 4px solid #cccccc;'>
-            <p style='margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #555555;'>📖 SUMMARY</p>
-            <p style='margin: 0; font-size: 12px; line-height: 1.5; color: #222222;'>{summary}</p>
+        <div style='background-color: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 5px solid #cccccc;'>
+            <p style='margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #333333; letter-spacing: 0.5px;'>📖 줄거리</p>
+            <p style='margin: 0; font-size: 13px; line-height: 1.6; color: #000000; font-weight: 400;'>{summary}</p>
         </div>
     </div>
     """
-    return tooltip_html.replace("\n", "").strip()
+    return tooltip_html.replace("\n", "").replace("\r", "").strip()
 
 # 6. JSON 추출 도우미
 def extract_json(text):
@@ -118,12 +118,18 @@ def get_recommendations(books):
     5. **중요**: 모든 추천 책은 반드시 하나 이상의 Seed 책과 연결되어야 함
     6. edges의 source와 target은 반드시 nodes에 있는 id와 정확히 일치해야 함
     7. edge label은 연결 이유를 2-4단어로 표현 (예: "실존주의 철학", "성장과 고독", "디스토피아")
+    8. **summary**: 각 책의 핵심 줄거리를 2-3문장으로 작성
+    9. **reason**: 왜 이 책을 추천하는지 구체적인 이유를 2-3문장으로 작성 (문체, 주제, 분위기 등)
     
     [JSON 형식 - 이 형식만 출력]
     {{
       "nodes": [
-        {{"id": "데미안", "title": "데미안", "author": "헤르만 헤세", "group": "Seed", "summary": "...", "reason": "입력하신 책입니다"}},
-        {{"id": "수레바퀴 아래서", "title": "수레바퀴 아래서", "author": "헤르만 헤세", "group": "Recommended", "summary": "...", "reason": "데미안과 유사한 성장소설"}}
+        {{"id": "데미안", "title": "데미안", "author": "헤르만 헤세", "group": "Seed", 
+          "summary": "한 소년의 성장 과정을 그린 소설로, 자아 발견의 여정을 담고 있습니다.", 
+          "reason": "입력하신 책입니다. 성장과 자아 탐구의 고전입니다."}},
+        {{"id": "수레바퀴 아래서", "title": "수레바퀴 아래서", "author": "헤르만 헤세", "group": "Recommended", 
+          "summary": "천재 소년의 비극적 몰락을 그린 성장소설입니다.", 
+          "reason": "데미안과 같은 작가의 작품으로, 교육 시스템 속 개인의 고독을 다룹니다."}}
       ],
       "edges": [
         {{"source": "데미안", "target": "수레바퀴 아래서", "label": "성장과 고독"}},
@@ -235,7 +241,9 @@ def visualize_network(data):
       },
       "interaction": {
         "hover": true,
-        "tooltipDelay": 100
+        "tooltipDelay": 50,
+        "hideEdgesOnDrag": false,
+        "hideEdgesOnZoom": false
       }
     }
     """
@@ -294,12 +302,19 @@ def visualize_network(data):
             
         custom_css = """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;800&display=swap');
+        
         div.vis-tooltip {
+            position: fixed !important;
             background-color: transparent !important;
             border: none !important;
             box-shadow: none !important;
             padding: 0 !important;
             font-family: 'Noto Sans KR', sans-serif !important;
+            pointer-events: none !important;
+            z-index: 9999 !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         canvas {
             outline: none !important;
