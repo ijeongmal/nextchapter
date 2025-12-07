@@ -1,0 +1,5 @@
+{
+  "name": "Book Note: Literary Nexus",
+  "description": "A sophisticated book recommendation engine that visualizes literary connections based on style, difficulty, and philosophy using AI and D3.js.",
+  "requestFramePermissions": []
+}
