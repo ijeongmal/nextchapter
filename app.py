@@ -164,18 +164,14 @@ def get_recommendations(books):
                 cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
                 data = extract_json(cleaned_text)
                 
+                # 데이터 검증 (화면에 표시하지 않음)
                 if data:
-                    st.write(f"✅ 노드 개수: {len(data.get('nodes', []))}")
-                    st.write(f"✅ 엣지 개수: {len(data.get('edges', []))}")
-                    
                     node_ids = {n.get('id') for n in data.get('nodes', [])}
                     for edge in data.get('edges', []):
                         src = edge.get('source')
                         tgt = edge.get('target')
-                        if src not in node_ids:
-                            st.warning(f"⚠️ 엣지 소스 '{src}'가 노드에 없습니다")
-                        if tgt not in node_ids:
-                            st.warning(f"⚠️ 엣지 타겟 '{tgt}'가 노드에 없습니다")
+                        # 검증만 하고 출력은 하지 않음
+                        pass
                 
                 return data
             else:
@@ -319,7 +315,6 @@ def visualize_network(data):
         )
     
     # 엣지 추가
-    edge_count = 0
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
@@ -327,9 +322,6 @@ def visualize_network(data):
         
         if source and target:
             net.add_edge(source, target, label=label, title=label)
-            edge_count += 1
-    
-    st.write(f"🔗 생성된 연결선: {edge_count}개")
             
     # HTML 생성 및 커스텀 CSS 추가
     try:
