@@ -41,47 +41,49 @@ with st.sidebar:
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 5. 툴팁 HTML 생성 함수 (오류 방지 및 디자인)
+# 5. 툴팁 HTML 생성 함수
 def create_tooltip_html(node_data):
-    # 데이터 가져오기 및 안전 처리
+    # 🌟 [수정] id보다 title을 우선적으로 가져오도록 변경
+    # AI가 id에 "1", "A" 같은 걸 넣고 title에 진짜 제목을 넣을 때를 대비
+    book_title = node_data.get('title') or node_data.get('id') or "제목 없음"
+    
+    # 텍스트 안전 처리
     def clean(text):
         if not text: return ""
-        # 따옴표가 HTML을 깨지 않도록 변환
         return html.escape(str(text)).replace("'", "&#39;").replace('"', "&quot;")
 
-    book_title = clean(node_data.get('id') or node_data.get('title') or "제목 없음")
+    book_title_safe = clean(book_title)
     author = clean(node_data.get('author', '저자 미상'))
     reason = clean(node_data.get('reason', '분석 내용이 없습니다.'))
     summary = clean(node_data.get('summary', '줄거리 정보가 없습니다.'))
     group = node_data.get('group', 'Recommended')
 
     if group == 'Seed':
-        badge_bg = "#FF6B6B" # 코랄
+        badge_bg = "#FF6B6B"
         badge_text = "SEED BOOK"
     elif group == 'Level2':
-        badge_bg = "#FFD93D" # 노랑
+        badge_bg = "#FFD93D"
         badge_text = "DEEP DIVE"
     else:
-        badge_bg = "#4ECDC4" # 민트
+        badge_bg = "#4ECDC4"
         badge_text = "RECOMMENDED"
 
-    # 🌟 화이트 카드 디자인
     tooltip_html = f"""
-    <div class="book-card">
-        <div class="card-header">
-            <span class="badge" style="background-color: {badge_bg};">{badge_text}</span>
+    <div style='background-color: #ffffff; color: #000000; padding: 15px; border-radius: 12px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid #e0e0e0; font-family: "Noto Sans KR", sans-serif; text-align: left;'>
+        <div style='margin-bottom: 10px;'>
+            <span style='background-color: {badge_bg}; color: #000000; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px;'>{badge_text}</span>
         </div>
-        <div class="card-body">
-            <h3>{book_title}</h3>
-            <p class="author">👤 {author}</p>
-            <div class="section-box reason">
-                <p class="section-title">💡 Analysis</p>
-                <p class="section-content">{reason}</p>
-            </div>
-            <div class="section-box summary">
-                <p class="section-title">📖 Summary</p>
-                <p class="section-content">{summary}</p>
-            </div>
+        <h3 style='margin: 0 0 5px 0; font-size: 18px; font-weight: 700; color: #000000;'>{book_title_safe}</h3>
+        <p style='margin: 0 0 15px 0; font-size: 13px; color: #666666;'>👤 {author}</p>
+        
+        <div style='background-color: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid {badge_bg};'>
+            <p style='margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #555555;'>💡 ANALYSIS</p>
+            <p style='margin: 0; font-size: 12px; line-height: 1.5; color: #222222;'>{reason}</p>
+        </div>
+        
+        <div style='background-color: #f8f9fa; padding: 10px; border-radius: 8px; border-left: 4px solid #cccccc;'>
+            <p style='margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #555555;'>📖 SUMMARY</p>
+            <p style='margin: 0; font-size: 12px; line-height: 1.5; color: #222222;'>{summary}</p>
         </div>
     </div>
     """
@@ -112,10 +114,11 @@ def get_recommendations(books):
     문학 큐레이터로서 책의 정서, 문체, 철학을 연결하여 '꼬리에 꼬리를 무는 추천 지도'를 만드세요.
     
     [조건]
-    1. Seed(입력) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 연결.
+    1. Seed(입력책) -> Level 1(1차 추천) -> Level 2(파생 추천) 순으로 확장.
     2. 총 노드 15개 이상.
     3. 오직 JSON 포맷만 출력.
-    4. 키 이름: "id", "author", "group", "summary", "reason".
+    4. 키 이름: "id", "title" (책제목 필수), "author", "group", "summary", "reason".
+    5. **중요**: "id"는 고유 식별자(숫자나 문자)여도 되지만, **"title"** 키에 반드시 책 제목을 한글로 정확히 적으세요.
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -135,29 +138,68 @@ def get_recommendations(books):
         st.error(f"통신 오류: {e}")
         return None
 
-# 8. Pyvis 시각화 (🌟 색상 문제 해결)
+# 8. Pyvis 시각화
 def visualize_network(data):
-    # 배경 흰색, 기본 글자색 검정
+    # 🌟 [설정] 배경 흰색(#ffffff), 기본 글자 검정(#000000)
     net = Network(height="750px", width="100%", bgcolor="#ffffff", font_color="#000000")
     
     if isinstance(data, list):
         data = {'nodes': data, 'edges': []}
     if not isinstance(data, dict) or 'nodes' not in data:
         return None
-
-    # 물리 엔진
-    net.force_atlas_2based(
-        gravity=-80,
-        central_gravity=0.005,
-        spring_length=200,
-        spring_strength=0.04,
-        damping=0.5
-    )
+    
+    # 🌟 [핵심] 전체 옵션 설정 (여기서 선 색상을 강제합니다)
+    # edges: color를 진한 회색(#666666)으로 고정
+    # physics: 둥실둥실 효과
+    options = """
+    {
+      "nodes": {
+        "font": {
+          "size": 16,
+          "face": "Noto Sans KR",
+          "color": "#000000",
+          "strokeWidth": 3,
+          "strokeColor": "#ffffff"
+        },
+        "borderWidth": 2,
+        "borderWidthSelected": 4
+      },
+      "edges": {
+        "color": {
+          "color": "#666666",
+          "highlight": "#000000",
+          "hover": "#000000"
+        },
+        "width": 1.5,
+        "smooth": {
+          "type": "continuous"
+        }
+      },
+      "physics": {
+        "forceAtlas2Based": {
+          "gravitationalConstant": -80,
+          "centralGravity": 0.005,
+          "springLength": 200,
+          "springConstant": 0.04,
+          "damping": 0.5
+        },
+        "solver": "forceAtlas2Based"
+      }
+    }
+    """
+    net.set_options(options)
     
     for node in data.get('nodes', []):
-        if 'id' not in node:
-            node['id'] = node.get('title', 'Unknown Book')
-            
+        # ID와 Title 처리 (가장 중요한 수정)
+        node_id = node.get('id')
+        # 라벨(화면에 뜨는 글자)은 title이 있으면 title, 없으면 id 사용
+        node_label = node.get('title') or str(node_id)
+        
+        # ID가 없으면 에러나므로 임의 지정
+        if not node_id:
+            node_id = node_label
+            node['id'] = node_id
+
         group = node.get('group', 'Recommended')
         
         if group == 'Seed':
@@ -173,31 +215,20 @@ def visualize_network(data):
         tooltip_html = create_tooltip_html(node)
         
         net.add_node(
-            node['id'], 
-            label=str(node['id']), # 🌟 책 제목 표시
+            node_id, 
+            label=node_label, # 🌟 여기가 'A' '1' 대신 '책제목'이 뜨게 하는 핵심
             title=tooltip_html,
             color=color, 
-            size=size,
-            borderWidth=2,
-            borderWidthSelected=4,
-            # 🌟 [수정] 폰트 색상: 검정(#000000) 강제 적용
-            font={
-                'face': 'Noto Sans KR', 
-                'size': 16, 
-                'color': '#000000',  # 여기가 핵심 (검정 글씨)
-                'strokeWidth': 3, 
-                'strokeColor': '#ffffff' # 글씨 테두리는 흰색
-            }
+            size=size
         )
     
     for edge in data.get('edges', []):
         source = edge.get('source')
         target = edge.get('target')
         if source and target:
-            # 🌟 [수정] 연결선 색상: 진한 회색(#666666) 강제 적용
-            net.add_edge(source, target, color="#666666", width=1.5)
+            net.add_edge(source, target)
             
-    # CSS 강제 주입 (화이트 카드)
+    # CSS 강제 주입 (툴팁 초기화)
     try:
         path = "tmp_network.html"
         net.save_graph(path)
@@ -212,39 +243,8 @@ def visualize_network(data):
             border: none !important;
             box-shadow: none !important;
             padding: 0 !important;
-            color: black !important;
+            font-family: 'Noto Sans KR', sans-serif !important;
         }
-        .book-card {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            width: 320px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-            border: 1px solid #e0e0e0;
-            text-align: left;
-            font-family: 'Noto Sans KR', sans-serif;
-        }
-        .card-header {
-            padding: 10px 15px;
-            border-bottom: 1px solid #f0f0f0;
-            background-color: #fafafa;
-        }
-        .badge {
-            color: #000000;
-            font-size: 11px;
-            font-weight: 800;
-            padding: 4px 8px;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
-        .card-body { padding: 15px; }
-        .card-body h3 { margin: 0 0 5px 0; font-size: 18px; font-weight: 700; color: #111; }
-        .author { margin: 0 0 15px 0; font-size: 13px; color: #666; }
-        .section-box { padding: 10px; border-radius: 6px; margin-bottom: 8px; }
-        .reason { background-color: #f0f7ff; border-left: 3px solid #007bff; }
-        .summary { background-color: #f9f9f9; border-left: 3px solid #ccc; }
-        .section-title { margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #555; }
-        .section-content { margin: 0; font-size: 12.5px; line-height: 1.5; color: #222; }
         </style>
         """
         
