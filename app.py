@@ -67,7 +67,7 @@ def create_tooltip_html(node_data):
     """
     return html.replace("\n", "")
 
-# 6. JSON 추출 도우미 함수 (강력한 필터)
+# 6. JSON 추출 도우미 함수
 def extract_json(text):
     try:
         return json.loads(text)
@@ -75,7 +75,6 @@ def extract_json(text):
         pass
     
     try:
-        # 텍스트 속에 숨어있는 JSON 찾기 (중괄호 { } 또는 대괄호 [ ] 패턴)
         match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', text)
         if match:
             json_str = match.group(0)
@@ -86,7 +85,123 @@ def extract_json(text):
 
 # 7. 그래프 생성 로직
 def get_recommendations(books):
-    # 🌟 [수정] 다시 'gemini-2.5-flash'로 복귀 (연결 가능한 모델)
+    # Gemini 2.5 Flash 사용
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
+    # 🌟 문법 오류가 나지 않도록 프롬프트를 꼼꼼하게 작성했습니다.
     prompt = f"""
+    사용자가 입력한 인생 책 3권: {books}
+    
+    [역할]
+    당신은 '문학 큐레이터'입니다. 책의 분위기, 정서, 철학을 분석하여 추천하십시오.
+    
+    [필수 조건]
+    1. 결과는 반드시 JSON 포맷이어야 합니다.
+    2. 마크다운(```)을 절대 쓰지 마십시오.
+    3. 잡담 금지. 오직 JSON 데이터만 출력하십시오.
+    4. 데이터 구조 예시:
+       {{
+         "nodes": [
+           {{"id": "책제목", "author": "저자", "group": "Seed" 또는 "Recommended", "summary": "한줄요약", "reason": "추천이유"}}
+         ],
+         "edges": [
+           {{"source": "책제목A", "target": "책제목B"}}
+         ]
+       }}
+    """
+    
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        result = response.json()
+        
+        if 'candidates' in result and result['candidates']:
+            raw_text = result['candidates'][0]['content']['parts'][0]['text']
+            cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
+            return extract_json(cleaned_text)
+        else:
+            return None
+    except Exception as e:
+        st.error(f"통신 오류: {e}")
+        return None
+
+# 8. Pyvis 시각화 함수
+def visualize_network(data):
+    net = Network(height="650px", width="100%", bgcolor="#0e1117", font_color="white")
+    
+    if isinstance(data, list):
+        data = {'nodes': data, 'edges': []}
+        
+    if not isinstance(data, dict) or 'nodes' not in data:
+        return None
+
+    net.force_atlas_2based(
+        gravity=-80,
+        central_gravity=0.01,
+        spring_length=200,
+        spring_strength=0.05,
+        damping=0.4
+    )
+    
+    for node in data.get('nodes', []):
+        if 'id' not in node:
+            node['id'] = node.get('title', 'Unknown Book')
+            
+        group = node.get('group', 'Recommended')
+        
+        if group == 'Seed':
+            color = "#FF6B6B"
+            size = 40
+        else:
+            color = "#4ECDC4"
+            size = 25
+            
+        tooltip_html = create_tooltip_html(node)
+        
+        net.add_node(
+            node['id'], 
+            label=node['id'], 
+            title=tooltip_html,
+            color=color, 
+            size=size,
+            borderWidth=2,
+            borderWidthSelected=5,
+            font={'face': 'Noto Sans KR', 'size': 16, 'color': 'white', 'strokeWidth': 2, 'strokeColor': '#000000'}
+        )
+    
+    for edge in data.get('edges', []):
+        source = edge.get('source')
+        target = edge.get('target')
+        if source and target:
+            net.add_edge(source, target, color="rgba(200, 200, 255, 0.15)", width=1)
+    
+    return net
+
+# 9. 메인 실행
+if analyze_btn and book1 and book2 and book3:
+    with st.spinner("AI가 당신의 독서 취향을 우주에 연결하고 있습니다..."):
+        data = get_recommendations([book1, book2, book3])
+        
+        if data:
+            try:
+                net = visualize_network(data)
+                
+                if net:
+                    path = "tmp_network.html"
+                    net.save_graph(path)
+                    with open(path, 'r', encoding='utf-8') as f:
+                        source_code = f.read()
+                    components.html(source_code, height=670)
+                    st.success("분석 완료! 노드 위에 마우스를 올려보세요.")
+                else:
+                    st.error("데이터 형식 오류: AI가 유효한 그래프 데이터를 만들지 못했습니다.")
+                    
+            except Exception as e:
+                st.error(f"시각화 중 오류: {e}")
+        else:
+            st.error("AI 응답을 받아오지 못했습니다. 잠시 후 다시 시도해주세요.")
+
+elif analyze_btn:
+    st.warning("책 3권을 모두 입력해주세요.")
