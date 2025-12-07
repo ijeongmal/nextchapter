@@ -5,20 +5,23 @@ import requests
 import json
 import streamlit.components.v1 as components
 
-# 1. 페이지 설정
+# 1. 페이지 설정 및 폰트 로드
 st.set_page_config(page_title="Literary Nexus", layout="wide")
 
-# 2. 제목 및 설명
-st.title("📚 AI 기반 도서 추천 네트워크")
+# 웹 폰트(Noto Sans KR) 강제 적용 및 툴팁 스타일 정의
 st.markdown("""
 <style>
-.big-font { font-size:18px !important; }
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Noto Sans KR', sans-serif;
+}
 </style>
-<p class="big-font">
-세 권의 책을 입력하면, 단순한 장르를 넘어 <b>문체, 철학, 난이도</b> 등 포괄적인 취향을 분석하여 책을 연결해 드립니다.<br>
-생성된 네트워크의 <b>노드(점)에 마우스를 올리면 추천 이유</b>를 볼 수 있습니다.
-</p>
 """, unsafe_allow_html=True)
+
+# 2. 제목 및 설명
+st.title("🌌 AI 도서 취향 탐색기")
+st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**를 분석하여 당신만의 도서 우주를 만들어 드립니다.")
 
 # 3. API 키 가져오기
 try:
@@ -29,39 +32,92 @@ except Exception:
 
 # 4. 사이드바 입력창
 with st.sidebar:
-    st.header("나의 인생 책 3권")
+    st.header("📚 나의 인생 책 3권")
     book1 = st.text_input("첫 번째 책", placeholder="예: 데미안")
-    book2 = st.text_input("두 번째 책", placeholder="예: 총, 균, 쇠")
+    book2 = st.text_input("두 번째 책", placeholder="예: 참을 수 없는 존재의 가벼움")
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 5. 그래프 생성 로직 (Gemini 2.5 Flash)
+# 5. HTML 카드 생성 함수 (디자인 핵심)
+def create_tooltip_html(node_data):
+    # 보내주신 스크린샷과 유사한 '다크 카드' 스타일
+    bg_color = "#1E222B"  # 진한 남색 배경
+    text_color = "#FFFFFF"
+    accent_color = "#4ECDC4" if node_data['group'] == 'Recommended' else "#FF6B6B"
+    badge_text = "RECOMMENDED" if node_data['group'] == 'Recommended' else "SEED BOOK"
+    
+    html = f"""
+    <div style="
+        font-family: 'Noto Sans KR', sans-serif;
+        background-color: {bg_color};
+        color: {text_color};
+        padding: 20px;
+        border-radius: 12px;
+        width: 320px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        border: 1px solid #333;
+        text-align: left;
+    ">
+        <div style="
+            display: inline-block;
+            background-color: {accent_color};
+            color: #1e1e1e;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        ">
+            {badge_text}
+        </div>
+        <h3 style="margin: 0 0 5px 0; font-size: 22px; font-weight: 700;">{node_data['id']}</h3>
+        <p style="margin: 0 0 15px 0; font-size: 14px; color: #aaaaaa;">👤 {node_data.get('author', '저자 미상')}</p>
+        
+        <div style="
+            background-color: #2C303A;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        ">
+            <p style="margin: 0 0 5px 0; font-size: 11px; color: #888; font-weight: bold;">ANALYSIS</p>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #ddd;">
+                {node_data.get('reason', '분석 내용이 없습니다.')}
+            </p>
+        </div>
+        
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666; border-top: 1px solid #444; padding-top: 10px;">
+            📖 {node_data.get('summary', '')}
+        </p>
+    </div>
+    """
+    return html
+
+# 6. 그래프 생성 로직 (Gemini 2.5 Flash)
 def get_recommendations(books):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
-    # 🌟 프롬프트 대폭 강화: 추천 이유와 줄거리까지 요청
+    # 프롬프트: 저자(author) 정보 추가 요청
     prompt = f"""
     사용자가 입력한 3권의 책: {books}
     
     [목표]
-    이 책들을 기반으로 '포괄적인 취향(문체, 철학, 난이도, 분위기)'이 유사한 도서 추천 네트워크를 구성해줘.
-    단순한 장르 추천이 아니라, "이 작가의 건조한 문체를 좋아한다면 이 책도 좋아할 것" 같은 깊이 있는 연결이 필요해.
+    이 책들을 기반으로 문체, 철학, 난이도가 유사한 도서 추천 네트워크를 구성해줘.
     
     [출력 조건]
-    1. 입력된 책(Seed)과 추천된 책(Recommended)을 포함하여 총 15~20권 내외의 노드를 구성해.
-    2. 각 책마다 다음 정보를 포함해:
+    1. 총 15개 내외의 노드(책)를 구성해.
+    2. 각 책마다 다음 정보를 반드시 포함해:
        - title: 책 제목
-       - summary: 책의 핵심 줄거리나 내용 (1~2문장)
-       - reason: 이 책이 추천된 구체적인 이유 (입력된 책과의 공통점, 문체적 특성 등)
+       - author: 저자 이름 (중요!)
+       - reason: 이 책을 추천하는 구체적인 이유 (문체, 철학적 공통점 위주로 서술형으로 작성)
+       - summary: 책의 한 줄 요약
        - group: "Seed"(입력한 책) 또는 "Recommended"(추천된 책)
-    3. 책들 간의 연관성이 있다면 엣지(선)로 연결해.
-    4. 결과는 오직 JSON 형식으로만 출력해.
+    3. JSON 형식으로만 출력해.
     
-    [JSON 형식 예시]
+    [JSON 예시]
     {{
         "nodes": [
-            {{"id": "데미안", "group": "Seed", "summary": "자아를 찾아가는...", "reason": "입력하신 책입니다."}},
-            {{"id": "이방인", "group": "Recommended", "summary": "어머니의 죽음 이후...", "reason": "데미안의 내면 탐구와 유사한 실존주의적 철학을 담고 있어 추천합니다."}}
+            {{"id": "데미안", "author": "헤르만 헤세", "group": "Seed", "summary": "...", "reason": "..."}},
+            {{"id": "이방인", "author": "알베르 카뮈", "group": "Recommended", "summary": "...", "reason": "..."}}
         ],
         "edges": [
             {{"source": "데미안", "target": "이방인"}}
@@ -69,11 +125,7 @@ def get_recommendations(books):
     }}
     """
     
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
     try:
         response = requests.post(url, json=payload)
@@ -90,73 +142,69 @@ def get_recommendations(books):
         st.error(f"오류 발생: {e}")
         return None
 
-# 6. Pyvis 시각화 함수
+# 7. Pyvis 시각화 및 물리 엔진 설정
 def visualize_network(data):
-    # 네트워크 객체 생성 (높이, 너비, 배경색 등 설정)
-    net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="black")
+    # 배경색을 어두운 테마에 맞게 조정 (Streamlit과 어울리게)
+    net = Network(height="650px", width="100%", bgcolor="#0e1117", font_color="white")
     
-    # 물리 엔진 설정 (노드들이 쫀득하게 움직이도록)
-    net.force_atlas_2based()
+    # 🌟 물리 엔진 설정: '둥실둥실'한 느낌 (Force Atlas 2 Based)
+    # gravity가 낮을수록 더 넓게 퍼지고, springLength가 길수록 둥실거림
+    net.force_atlas_2based(
+        gravity=-50,           # 서로 밀어내는 힘 (음수일수록 강함)
+        central_gravity=0.01,  # 중앙으로 당기는 힘 (낮을수록 퍼짐)
+        spring_length=150,     # 엣지의 길이 (길수록 여유로움)
+        spring_strength=0.08,  # 스프링의 탄성
+        damping=0.4            # 멈추는 속도 (낮을수록 계속 움직임)
+    )
     
     # 노드 추가
     for node in data.get('nodes', []):
-        # 그룹별 색상 및 크기 설정
         if node['group'] == 'Seed':
-            color = "#ff6b6b" # 빨간색 (입력한 책)
-            size = 25
+            color = "#FF6B6B" # 코랄 핑크
+            size = 30
         else:
-            color = "#4ecdc4" # 민트색 (추천된 책)
-            size = 15
+            color = "#4ECDC4" # 민트
+            size = 20
             
-        # 🌟 핵심: title 속성에 HTML을 넣으면 마우스 오버 시 예쁜 툴팁이 뜹니다.
-        tooltip_content = f"""
-        <div style="font-family: sans-serif; padding: 10px; max-width: 300px;">
-            <h4 style="margin: 0 0 10px 0;">📖 {node['id']}</h4>
-            <p><b>💡 추천 이유:</b><br>{node.get('reason', '')}</p>
-            <hr style="margin: 5px 0;">
-            <p style="font-size: 0.9em; color: #555;"><b>줄거리:</b><br>{node.get('summary', '')}</p>
-        </div>
-        """
+        # 🌟 HTML 카드를 title 속성에 삽입 (마우스 오버/클릭 시 뜸)
+        tooltip_html = create_tooltip_html(node)
         
         net.add_node(
             node['id'], 
             label=node['id'], 
-            title=tooltip_content, # 여기가 툴팁 내용
+            title=tooltip_html, # 여기에 HTML 카드가 들어감
             color=color, 
             size=size,
-            borderWidth=2
+            borderWidth=2,
+            borderWidthSelected=4
         )
     
     # 엣지 추가
     for edge in data.get('edges', []):
-        net.add_edge(edge['source'], edge['target'], color="#cccccc")
-    
-    # 설정 옵션 (필요시 주석 해제하여 물리 엔진 조절 가능)
-    # net.show_buttons(filter_=['physics'])
+        net.add_edge(edge['source'], edge['target'], color="rgba(200, 200, 200, 0.3)")
     
     return net
 
-# 7. 메인 실행
+# 8. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    with st.spinner("AI가 책들의 영혼을 연결하고 있습니다..."):
+    with st.spinner("AI가 책들의 우주를 연결하고 있습니다..."):
         data = get_recommendations([book1, book2, book3])
         
         if data:
-            # 네트워크 생성
             net = visualize_network(data)
             
-            # HTML 파일로 저장 후 Streamlit에 표시
+            # HTML 파일로 저장 후 표시
             try:
-                # 임시 파일로 저장
                 path = "tmp_network.html"
                 net.save_graph(path)
                 
-                # HTML 파일 읽어서 렌더링
                 with open(path, 'r', encoding='utf-8') as f:
                     source_code = f.read()
-                components.html(source_code, height=620)
                 
-                st.success("네트워크가 생성되었습니다! 노드 위에 마우스를 올려보세요.")
+                # HTML 렌더링
+                components.html(source_code, height=670)
+                
+                st.success("네트워크 생성 완료! 노드에 마우스를 올려보세요.")
                 
             except Exception as e:
                 st.error(f"시각화 중 오류가 발생했습니다: {e}")
