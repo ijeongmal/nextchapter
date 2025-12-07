@@ -2,14 +2,15 @@ import streamlit as st
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import json
 import os
 
 # 1. 페이지 설정
 st.set_page_config(page_title="Literary Nexus", layout="wide")
 
-# 2. 한글 폰트 설정 (안전장치 포함)
+# 2. 한글 폰트 설정
 font_path = 'NanumGothic.ttf'
 font_name = 'sans-serif'
 try:
@@ -18,8 +19,6 @@ try:
         font_name = font_prop.get_name()
         plt.rc('font', family=font_name)
         plt.rcParams['axes.unicode_minus'] = False
-    else:
-        pass 
 except Exception:
     pass
 
@@ -27,12 +26,13 @@ except Exception:
 st.title("📚 AI 기반 도서 추천 네트워크")
 st.markdown("세 권의 책을 입력하면, 취향을 분석하여 새로운 책들을 연결해 드립니다.")
 
-# 4. API 키 설정
+# 4. API 키 설정 (신규 SDK 방식)
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=GOOGLE_API_KEY)
-except Exception:
-    st.error("API 키가 설정되지 않았습니다.")
+    client = genai.Client(api_key=GOOGLE_API_KEY)
+except Exception as e:
+    st.error(f"API 키 설정 오류: {e}")
+    client = None
 
 # 5. 사이드바 입력창
 with st.sidebar:
@@ -42,10 +42,11 @@ with st.sidebar:
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
     analyze_btn = st.button("네트워크 생성하기")
 
-# 6. 그래프 생성 로직
+# 6. 그래프 생성 로직 (신규 SDK 방식)
 def create_graph(books):
-    # ✅ 수정: 최신 모델 사용
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    if not client:
+        st.error("클라이언트가 초기화되지 않았습니다.")
+        return None
     
     prompt = f"""
     다음 3권의 책을 기반으로 도서 추천 네트워크를 만들어줘: {books}
@@ -68,7 +69,11 @@ def create_graph(books):
     """
     
     try:
-        response = model.generate_content(prompt)
+        # ✅ 신규 SDK 사용법
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=prompt
+        )
         text = response.text.replace("```json", "").replace("```", "")
         return json.loads(text)
     except Exception as e:
