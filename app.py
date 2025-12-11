@@ -23,7 +23,7 @@ html, body, [class*="css"] {
 """, unsafe_allow_html=True)
 
 # 2. 제목 및 설명
-st.title("🌌 AI 도서 취향 탐색기")
+st.title("🌌 NextChapter")
 st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다.")
 
 # 3. API 키 가져오기 (보안 강화)
@@ -47,7 +47,7 @@ except Exception as e:
 
 # 4. 사이드바 입력창
 with st.sidebar:
-    st.header("📚 나의 인생 책 3권")
+    st.header("📚 책 제목")
     book1 = st.text_input("첫 번째 책", placeholder="예: 데미안")
     book2 = st.text_input("두 번째 책", placeholder="예: 참을 수 없는 존재의 가벼움")
     book3 = st.text_input("세 번째 책", placeholder="예: 1984")
@@ -384,4 +384,4 @@ if analyze_btn and book1 and book2 and book3:
             st.error("AI 응답이 없습니다. 잠시 후 다시 시도해주세요.")
 
 elif analyze_btn:
-    st.info("👈 왼쪽 사이드바에 인생 책 3권을 입력하고 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.")
