@@ -368,26 +368,30 @@ def visualize_network(data):
 
 # 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    # 1. 안내 멘트용 빈 공간 생성 및 줄바꿈 문구 출력
+    # [핵심] 버튼을 누르자마자 위의 설명글 상자를 비워버립니다 (글씨가 사라짐)
+    desc_placeholder.empty()
+
+    # 1. 안내 멘트용 빈 공간 생성 및 로딩 멘트 출력
     msg_placeholder = st.empty()
     msg_placeholder.markdown(
         """
-        <div style="text-align: left; margin-bottom: 15px;">
+        <div style="text-align: center; margin-bottom: 15px;">
             <strong>Nextchapter가 책들의 우주를 연결하고 있습니다... 🚀</strong><br><br>
-            추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요.
+            추천 네트워크 생성을 위해 약간의 시간이 필요합니다.<br>
+            잠시만 기다려 주세요.
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    # 2. 스피너는 심플하게 작동 (실제 연산 수행)
+    # 2. 스피너와 함께 분석 시작
     with st.spinner("AI 분석 진행 중..."):
         data = get_recommendations([book1, book2, book3])
     
-    # 3. 분석이 끝나면 위의 안내 멘트(msg_placeholder)를 깔끔하게 지움
+    # 3. 분석이 끝나면 로딩 멘트도 지움
     msg_placeholder.empty()
 
-    # 4. 결과 처리 로직
+    # 4. 결과 출력
     if data:
         if not data.get('edges'):
             st.error("❌ AI가 연결선(edges)을 생성하지 못했습니다. 다시 시도해주세요.")
