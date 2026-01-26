@@ -370,18 +370,42 @@ if analyze_btn and book1 and book2 and book3:
     with st.spinner("Nextchapter가 책들의 우주를 연결하고 있습니다... <br>추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요", unsafe_allow_html=True):
         data = get_recommendations([book1, book2, book3])
         
-        if data:
-            if not data.get('edges'):
-                st.error("❌ AI가 연결선(edges)을 생성하지 못했습니다. 다시 시도해주세요.")
-            else:
-                final_html = visualize_network(data)
-                if final_html:
-                    components.html(final_html, height=770)
-                    st.success("✅ 분석 완료! 노드에 마우스를 올려보세요 📚")
-                else:
-                    st.error("시각화 생성 실패")
-        else:
-            st.error("AI 응답이 없습니다. 잠시 후 다시 시도해주세요.")
 
-elif analyze_btn:
-    st.info("👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.")
+
+# 9. 메인 실행
+if analyze_btn and book1 and book2 and book3:
+    # 1. status 컨테이너 생성 (expanded=True로 펼쳐놓음)
+    with st.status("Nextchapter가 책들의 우주를 연결하고 있습니다... 🚀", expanded=True) as status:
+        
+        # 2. 여기에 줄바꿈이 포함된 상세 안내 문구를 적습니다.
+        st.markdown(
+            """
+            추천 네트워크 생성을 위해 약간의 시간이 필요합니다.<br>
+            잠시만 기다려 주세요. AI가 책의 문체와 철학을 분석 중입니다. 📖
+            """, 
+            unsafe_allow_html=True
+        )
+        
+        # 3. 데이터 분석 함수 실행
+        data = get_recommendations([book1, book2, book3])
+        
+        # 4. 결과에 따라 상태 업데이트 (성공 시 박스를 접음)
+        if data and data.get('edges'):
+            status.update(label="✅ 분석 완료! 아래 지도를 확인하세요.", state="complete", expanded=False)
+        else:
+            status.update(label="❌ 분석 중 오류가 발생했습니다.", state="error")
+
+    # 5. 분석 결과 시각화 (status 박스 바깥에 표시)
+    if data:
+        if not data.get('edges'):
+            st.error("❌ AI가 연결선(edges)을 생성하지 못했습니다. 다시 시도해주세요.")
+        else:
+            final_html = visualize_network(data)
+            if final_html:
+                # 시각화 결과 출력
+                components.html(final_html, height=770)
+                st.success("✅ 나만의 독서 지도가 완성되었습니다! 노드에 마우스를 올려보세요 📚")
+            else:
+                st.error("시각화 생성 실패")
+    else:
+        st.error("AI 응답이 없습니다. 잠시 후 다시 시도해주세요.")
