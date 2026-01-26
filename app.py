@@ -367,7 +367,7 @@ def visualize_network(data):
 
 # 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    with st.spinner("Nextchapter가 책들의 우주를 연결하고 있습니다...<br>추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요", unsafe_allow_html=True):
+    with st.spinner("Nextchapter가 책들의 우주를 연결하고 있습니다... <br>추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요", unsafe_allow_html=True):
         data = get_recommendations([book1, book2, book3])
         
         if data:
