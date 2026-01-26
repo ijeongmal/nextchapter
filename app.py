@@ -372,7 +372,7 @@ if analyze_btn and book1 and book2 and book3:
     msg_placeholder = st.empty()
     msg_placeholder.markdown(
         """
-        <div style="text-align: center; margin-bottom: 15px;">
+        <div style="text-align: left; margin-bottom: 15px;">
             <strong>Nextchapter가 책들의 우주를 연결하고 있습니다... 🚀</strong><br><br>
             추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요.
         </div>
