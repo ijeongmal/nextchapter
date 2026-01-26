@@ -24,7 +24,7 @@ html, body, [class*="css"] {
 
 # 2. 제목 및 설명
 st.title("🌌 NextChapter")
-st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다.<br>👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.", unsafe_allow_html=True)
+st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다.<br><br>👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.", unsafe_allow_html=True)
 
 # 3. API 키 가져오기 (보안 강화)
 try:
