@@ -24,7 +24,7 @@ html, body, [class*="css"] {
 
 # 2. 제목 및 설명
 st.title("🌌 NextChapter")
-st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다.")
+st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다. <br>👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.")
 
 # 3. API 키 가져오기 (보안 강화)
 try:
@@ -367,7 +367,7 @@ def visualize_network(data):
 
 # 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    with st.spinner("Nextchapter가 책들의 우주를 연결하고 있습니다... 추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요"):
+    with st.spinner("Nextchapter가 책들의 우주를 연결하고 있습니다... <br>추천 네트워크 생성을 위해 약간의 시간이 필요합니다. 잠시만 기다려 주세요"):
         data = get_recommendations([book1, book2, book3])
         
         if data:
