@@ -24,7 +24,18 @@ html, body, [class*="css"] {
 
 # 2. 제목 및 설명
 st.title("🌌 NextChapter")
-st.markdown("세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다.<br><br>👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.", unsafe_allow_html=True)
+
+# [중요] 여기서 변수(상자)를 먼저 만들어야 합니다!
+desc_placeholder = st.empty() 
+
+# 만든 상자 안에 글씨 넣기
+desc_placeholder.markdown(
+    """
+    세 권의 책을 입력하면, **작가의 문체, 철학, 분위기**등을 분석하여 당신만의 독서 지도를 만들어 드립니다.<br><br>
+    👈 왼쪽 사이드바에 책 3권을 입력하고 버튼을 눌러주세요.
+    """, 
+    unsafe_allow_html=True
+)
 
 # 3. API 키 가져오기 (보안 강화)
 try:
@@ -368,10 +379,10 @@ def visualize_network(data):
 
 # 9. 메인 실행
 if analyze_btn and book1 and book2 and book3:
-    # [핵심] 버튼을 누르자마자 위의 설명글 상자를 비워버립니다 (글씨가 사라짐)
-    desc_placeholder.empty()
+    # 위에서 만든 상자를 비움 (이 줄에서 에러가 났던 것임)
+    desc_placeholder.empty() 
 
-    # 1. 안내 멘트용 빈 공간 생성 및 로딩 멘트 출력
+    # 안내 멘트용 새 상자 생성
     msg_placeholder = st.empty()
     msg_placeholder.markdown(
         """
