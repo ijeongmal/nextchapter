@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 넥스트챕터
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1bBH44Rb5_XRVa7nRh0_KJqHwEredu00h
+책 3권 입력만으로 당신에게 꼭 맞는 책을 추천받아 보세요.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set the `GEMINI_API_KEY` in `.env.local` to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Credits & History
+
+*   **Original Developer**: 이정민
+    *   프로젝트 아이디어 및 서비스 기획 참여, 프로젝트 소스 코드 구현
+*   **Co-Planners**: 윤해나, 배정윤
+    *   프로젝트 아이디어 및 서비스 기획
